@@ -104,7 +104,7 @@ if lang == 'de':
 for year in years:
 	print 'Downloading Year:', year, 'Language:', lang
 	year=str(year)
-	storage = '/mnt/storage/bender/users/meyeradriano'
+	storage = '/mnt/storage/walle/projects/climpresso/bb-ff-ff-new-dl'
 	path = storage+'/DATA_'+lang+'/'
 	create_directory(year,path)
 	
