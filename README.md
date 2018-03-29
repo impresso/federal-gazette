@@ -1,5 +1,10 @@
 # federal-gazette
+ - The federal gazette has one or more volumes (German "Band") per year. All pages in a volume are numbered consecutively. 
+ - Each volume consists of several issue numbers (numbered by arabic numbers within each volume). 
+ - Each issue consists of several articles (with titles and page numbers). 
 
-## filename specification
+## impresso canonical filename specification
 
-FedG-YYYY-MM-DD-a-00001.json (the numeration of pages starts from 1 for each day (we ignore the logical page numbering))
+FedGde-YYYY-MM-DD-a-00001.json
+FedGfr-YYYY-MM-DD-a-00001.json
+FedGit-YYYY-MM-DD-a-00001.json
