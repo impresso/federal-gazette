@@ -1,16 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
 Scraper to iterate through the PDFs in https://www.admin.ch from 1849 to 1999.
 
-$ python Bundesblatt_scraper_1849-1999 de
+$ python3 Bundesblatt_scraper_1849-1999 de
 '''
 import sys
 from lxml import etree
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import os
 import codecs
-from selenium import webdriver
+
 import time
 
 
@@ -30,7 +30,7 @@ def transform_date(date, lang):
 
     months_de = {   'Januar':'01',
             'Februar':'02',
-            u'M\xe4rz':'03',
+            'M\xe4rz':'03',
             'April':'04',
             'Mai':'05',
             'Juni':'06',
@@ -42,17 +42,17 @@ def transform_date(date, lang):
             'Dezember':'12'}
 
     months_fr = {   'janvier':'01',
-            u'f\xc3\xa9vrier':'02',
+            'f\xc3\xa9vrier':'02',
             'mars':'03',
             'avril':'04',
             'mai':'05',
             'juin':'06',
             'juillet':'07',
-            u'ao\xc3\xbbt':'08',
+            'ao\xc3\xbbt':'08',
             'septembre':'09',
             'octobre':'10',
             'novembre':'11',
-            u'd\xc3\xa9cembre':'12'}
+            'd\xc3\xa9cembre':'12'}
 
     date=date.split()
     if lang == 'it':
@@ -69,7 +69,7 @@ def create_directory(name, path):
         try:
             os.makedirs(path+'/'+name)
 
-        except OSError, e:
+        except OSError as e:
                 if e.errno != 17:
                     raise
                 # time.sleep might help here
@@ -80,7 +80,7 @@ available_langs = ['de','fr','it']
 try:
     lang =  sys.argv[1]
     if lang not in available_langs:
-        print 'Selected language is not available'
+        print('Selected language is not available')
         sys.exit()
 
 except:
@@ -102,22 +102,22 @@ if lang == 'de':
 
 #Iterate through the years
 for year in years:
-    print 'Downloading Year:', year, 'Language:', lang
+    print('Downloading Year:', year, 'Language:', lang)
     year=str(year)
     storage = '/mnt/storage/walle/projects/climpresso/bb-ff-ff-new-dl'
     path = storage+'/DATA_'+lang+'/'
     create_directory(year,path)
 
     #Download website as html file
-    print 'Downloading html index ...'
+    print('Downloading html index ...')
     url = main_url+'/opc/'+lang+'/federal-gazette/'+year+'/index.html'
     call = 'curl '+url+' >> '+path+'index.html'
 
     os.system(call)
 
-    print 'Sleeping 3 sec ...'
+    print('Sleeping 3 sec ...')
     time.sleep(3)
-    print url
+    print(url)
 
 
     #Open the downloades html index
@@ -145,19 +145,19 @@ for year in years:
 
 
             date = transform_date(td.text, lang)
-            print 'Working on:', date, 'Year:', year
-            print '--------------------------------------'
-            print ''
+            print('Working on:', date, 'Year:', year)
+            print('--------------------------------------')
+            print('')
             create_directory(date,path+year)
             path_2=path+year+'/'+date+'/'
 
-            print 'Downloading index2 ... '
+            print('Downloading index2 ... ')
             call = 'curl '+main_url+link+' >> '+path_2+'index2.html'
             os.system(call)
 
             #print 'Sleeping 3 sec ...'
             time.sleep(3)
-            print''
+            print('')
 
             #Open the downloades html index
             tree2 = etree.parse(open(path_2+'index2.html'),parser)
@@ -165,7 +165,7 @@ for year in years:
 
             for element2 in root2.iter('table',{'class': 'table table-striped'}):
                 #Extract info box and download links
-                infos =unicode()
+                infos =str()
                 download_links = list()
                 for td2 in element2.iter('td'):
                     for a2 in td2.iter('a'):
@@ -189,9 +189,9 @@ for year in years:
 
 
                 #Download PDF files
-                print 'Downloading PDFs ...'
+                print('Downloading PDFs ...')
                 for href in download_links:
-                    response = urllib2.urlopen(href)
+                    response = urllib.request.urlopen(href)
 
                     #Crate Name for PDF-file
                     file_name = href[-8:]+'.pdf'
@@ -199,13 +199,15 @@ for year in years:
                     file.write(response.read())
                     file.close()
 
-                    print 'Sleeping 3 sec ...'
+                    print('Sleeping 3 sec ...')
                     time.sleep(3)
-                    print''
+                    print('')
 
 
 
 
-    os.system('rm '+storage+'/DATA_'+lang+'/index.html')
+  #  os.system('rm '+storage+'/DATA_'+lang+'/index.html')
 
-print 'Script terminated'
+print('Script terminated')
+
+
