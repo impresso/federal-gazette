@@ -9,6 +9,10 @@ Each info file contains the following information:
  - Pages
  - Download URL
 
+Algorithm:
+ 1. Collect for a year the information about each issue. Stored in YEARINFO
+ 2. Collect for each issue all relevant infos about each articles. Stored in ISSUEINFO. Note that all information about the year is redundantly stored in the ISSUEINFOs.
+
 Example call for processing whole directories
 python3 -i indir
 
@@ -16,8 +20,9 @@ example call for processing a single file
 python3  < INFILE > OUTPUTFILE
 """
 
-import sys, codecs
+import sys, codecs,re
 import os
+import pandas as pd
 from optparse import OptionParser
 from lxml import etree
 
@@ -35,7 +40,10 @@ sys.stdout = codecs.getwriter('UTF-8')(sys.stdout.buffer)
 sys.stdin = codecs.getreader('UTF-8')(sys.stdin.buffer)
 
 
-INFO = [] # list of dictionaries
+OPTIONS = {} # dictionary of options
+
+YEARINFO = [] # list of dictionaries
+ISSUEINFO = []
 
 months_it = {   'gennaio':'01',
         'febbraio':'02',
@@ -81,24 +89,26 @@ MONTHS = months_it
 MONTHS.update(months_de)
 MONTHS.update(months_fr)
 
-def transform_date(date):
+
+def main(args):
     """
-    Return YYYY-MM-DD format of textual date
-
-    German dates: <td> 3. März 1849</td>
-    French dates: <td> 4 avril 1849</td>
-    Italian dates: <td>02 aprile 1971</td>
+    Given a main html index file from www.admin.ch  convert all HTML files to tsv files
+    :param input_dir: directory containing tetml files
+    :param row_hint: define which Element in the XML tree contains one text row
+    :return:
     """
-    date = date.replace('.','').strip().split()
-    if len(date) == 3 and date[1] in MONTHS:
-        return '%s-%2s-%2s' % (date[2],MONTHS[date[1]].zfill(2),date[0].zfill(2))
-    else:
-        print('WARNING: malformed date %s' % (date,),file=sys.stderr)
+    global YEARINFO
+    for a in args:
+        update_year_info(a)
+        update_issue_info()
+        YEARINFO = []
+    output_info()
 
 
-def update_info(path):
+
+def update_year_info(path):
     """
-
+    Modify the
     Index contains HTML of  the following form
 
     </p>
@@ -123,65 +133,205 @@ def update_info(path):
 <tr>
 
     """
-    global INFO
-    parser = etree.HTMLParser()
-    tree = etree.parse(codecs.open(path,encoding='utf-8'),parser)
-    root = tree.getroot()
+    global YEARINFO
+    if OPTIONS.get('debug'): print('#INFO-YEAR-PATH::',path, file=sys.stderr)
+    prefix = re.sub(r'^([^/]+).*',r'\1',path)  # extract the path to index.html
 
-    for element in root.iter('table',{'class': 'table table-striped'}):
-        for tr in element.iter('tr'):
-            tds = tr.findall('./td')
-            if len(tds) < 3: # jump over th header row
-                continue
-            else:
-                info = {}
-                info['subpage'] = tds[0].find('.a').attrib['href']
-                info['date'] = transform_date(tds[1].text)
-                pagerange = tds[2].text.split('–')
-                info['pagestart'] = int(pagerange[0])
-                info['pageend'] = int(pagerange[1])
-                print(info)
+    with codecs.open(path,encoding='utf-8') as f:
+        tree = etree.parse(f, etree.HTMLParser(encoding='utf-8'))
+        root = tree.getroot()
+        volume = 'I'
+
+        for element in root.iter('table',{'class': 'table table-striped'}):
+            for tr in element.iter('tr'):
+                tds = tr.findall('./td')
+                if len(tds) < 3: # jump over th header row
+                    if len(tds) == 1:
+                        vol = tds[0].find('.strong')
+                        if vol is not None:
+                            volume = transform_volume(vol.text)
+                else:
+                    info = {'volume_number' : volume}
+                    info['volume_language'] = get_lang(path)
+                    info['issue_html'] = prefix + tds[0].find('.a').attrib['href']
+                    info['issue_number'] =  re.sub(r'.+index_(\d+)\.html',r'\1',info['issue_html'])
+                    info['issue_date'] = transform_date(tds[1].text)
+                    pagerange = tds[2].text.split('–')
+                    info['issue_page_first'] = int(pagerange[0])
+                    info['issue_page_last'] = int(pagerange[1])
+                    YEARINFO.append(info)
 
 
-    for element2 in root2.iter('table',{'class': 'table table-striped'}):
-        #Extract info box and download links
-        infos = str()
-        download_links = []
-        for td2 in element2.iter('td'):
-            for a2 in td2.iter('a'):
-                download_links.append(a2.attrib['href'])
-                file_name = a2.attrib['href'][-8:]
-                for span in a2.iter('span'):
-                    l1= span.xpath('text()')
-                    l2=span.xpath('b/text()')
-                    l=l1[0]+l2[0]+l1[1]
-                    l=''.join(l.split())
-                    l=file_name+'\t'+l
-                    infos+=l
-
-        if td2.text!= None:
-            infos+='\t'+td2.text+'\n'
-
-    print(infos)
-
-def main(args,options={}):
+def update_issue_info():
     """
-    Given a main html index file from www.admin.ch  convert all HTML files to tsv files
-    :param input_dir: directory containing tetml files
-    :param row_hint: define which Element in the XML tree contains one text row
-    :return:
+    Update the information about all issues of each year
     """
-    update_info(args[0])
-    exit(0)
-    if args.inputFolder:
-        xml_files = [f for f in os.listdir(input_dir) if f.endswith('.html')]
+    if OPTIONS['debug']:
+        print(YEARINFO, file=sys.stderr)
+    for yinfo in YEARINFO:
+#        print(yinfo,file=sys.stderr)
+        for issue_info in  next_article(yinfo['issue_html'], yinfo['issue_date']):
+            if OPTIONS.get('debug'): print('#INFO-ISSUE::',issue_info, file=sys.stderr)
+            issue_info.update(yinfo)
+            ISSUEINFO.append(issue_info)
 
-        for xml_f in xml_files:
 
-            with open(os.path.join(input_dir, xml_f[:-4] + '.txt'), 'w', encoding='utf-8') as outfile:
-                tetml2text(xml_f, outfile, args)
+def transform_date(date):
+    """
+    Return YYYY-MM-DD format of textual date specifications in de, fr, it
+
+    Note: As the names of months are specific to each language, no prior language information is needed.
+
+    German dates: <td> 3. März 1849</td>
+    French dates: <td> 4 avril 1849</td>
+    Italian dates: <td>02 aprile 1971</td>
+    """
+    date = date.replace('.','') # normalize German dates
+    fields = date.strip().split()
+    if len(fields) == 3 and fields[1] in MONTHS:
+        return '%s-%2s-%2s' % (fields[2],MONTHS[fields[1]].zfill(2),fields[0].zfill(2))
     else:
-        tetml2text(sys.stdin, sys.stdout, args)
+        print('WARNING: malformed date %s' % (date,), file=sys.stderr)
+
+
+def get_lang(path):
+    """
+    Return iso-2-letter language
+    """
+    if '/de/' in path: return 'de'
+    if '/fr/' in path: return 'fr'
+    if '/it/' in path: return 'it'
+    print('Warning: no language information in path', path,file=sys.stderr)
+
+def transform_volume(volume):
+    return re.sub(r' *(Band|Volume) +','',volume)
+
+def next_article(path, date):
+    """
+
+    Date is a string of the form YYYY-MM-DD
+
+Format of Bundesarchiv  entries
+
+<table class="table table-striped">
+	<tbody>
+		<tr><th>Quelle</th><th>Titel</th></tr>
+		<tr>
+			<td style="white-space: nowrap;"><a href="http://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10004300" target="_blank"><span style="font-weight: normal">BBl <b>1864</b> I 1</span></a></td>
+			<td>Bericht und Antrag der nationalrätlichen Petitionskommission betreffend den Rekurs des Advokaten Karl Conti von Lugano und mehrerer tessinischen Geistlichen gegen den Beschluss des Bundesrats vom 7. September 1863 wegen Ausschliessung der Geistlichen nach</td>
+		</tr>
+		<tr>
+			<td style="white-space: nowrap;"><a href="http://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10004301" target="_blank"><span style="font-weight: normal">BBl <b>1864</b> I 9</span></a></td>
+			<td>Aus den Verhandlungen des schweiz. Bundesrates.</td>
+		</tr>
+		<tr>
+			<td style="white-space: nowrap;"><a href="http://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10004302" target="_blank"><span style="font-weight: normal">BBl <b>1864</b> I 18</span></a></td>
+			<td>Inserate.</td>
+		</tr>
+	</tbody>
+</table>
+
+
+Format of Federal
+
+
+<table class="table table-striped">
+    <tbody>
+    <tr>
+        <th>Quelle</th>
+        <th>Titel</th>
+        <!--<th>SR-Nummer*</th>-->
+        <th class="nowrap">Verantwortliche Stelle</th>
+    </tr>
+
+        <tr>
+            <td class="nowrap">
+                <a href="/opc/de/federal-gazette/2016/4129.pdf" target="_blank">
+                    BBl <strong>2016</strong> 4129</a>
+                    <br/>
+                    <a href='http://intranet.admin.ch/ch/d/ff/2016/4129.doc' class="internal-items" target="_blank">DOC</a>
+            </td>
+            <td>Bundesbeschluss über die Kredite für die internationale Zusammenarbeit in Bildung, Forschung und Innovation für die Jahre 2013–2016</td>
+            <!--
+            <td class="nowrap">
+
+            </td>-->
+            <td class="small">
+SBFI - Staatssekretariat f&#252;r Bildung, Forschung und Innovation            </td>
+        </tr>
+        <tr>
+            <td class="nowrap">
+                <a href="/opc/de/federal-gazette/2016/4131.pdf" target="_blank">
+                    BBl <strong>2016</strong> 4131</a>
+                    <br/>
+                    <a href='http://intranet.admin.ch/ch/d/ff/2016/4131.doc' class="internal-items" target="_blank">DOC</a>
+            </td>
+            <td>Militärische Plangenehmigung betreffend Gemeinde Bäretswil; Altlastensanierung Schiessplatz, Zielgebiet Obis, Hinter Bettswil</td>
+            <!--
+            <td class="nowrap">
+
+            </td>-->
+            <td class="small">
+GS-VBS - Generalsekretariat VBS            </td>
+        </tr>
+
+
+    """
+    newformatdata = '1999-06-22'
+    site = 'https://www.admin.ch'
+    if OPTIONS.get('debug'): print('#INFO-OPENING::',path, file=sys.stderr)
+    with codecs.open(path,encoding='utf-8') as f:
+        tree = etree.parse(f,etree.HTMLParser(encoding='utf-8'))
+        root = tree.getroot()
+        for element2 in root.iter('table',{'class': 'table table-striped'}):
+            #Extract info box and download links
+
+            download_links = []
+            for tr in element2.iter('tr'):
+                tds = tr.findall('./td')
+
+                if date < newformatdata:
+
+                    if len(tds) == 2: # jump over the header row
+                        a = tds[0].find('a')
+                        if not a is None:
+                            info = {'issue_path':path}
+                            info['article_pdf_url'] = a.attrib['href'].replace('http:','https:')
+                            info['article_docid'] = info['article_pdf_url'][-8:]
+                            info['article_title'] = re.sub(r'\s+',' ',tds[1].text)
+                            startpageinfo = a.find('span/b').tail.split()
+                            info['article_page_first'] = int(startpageinfo[-1])
+                        else:
+                            print('Could not find doc url',path,file=sys.stderr)
+                        if OPTIONS.get('debug'): print(info, file=sys.stderr)
+                        yield info
+                else:
+                    if len(tds) >= 2: # jump over the header row
+                        a = tds[0].find('a')
+                        if not a is None:
+                            info = {'issue_path':path}
+                            info['article_pdf_url'] = site + a.attrib['href'].replace('http:','https:')
+                            info['article_docid'] = re.sub(r'.+?(\d+)/(\d+)\.pdf$',r'\1_\2',info['article_pdf_url'])
+                            info['article_title'] = re.sub(r'\s+',' ',tds[1].text)
+                            startpageinfo = a.find('strong').tail.split()
+                            info['article_page_first'] = int(startpageinfo[-1])
+                        else:
+                            print('Could not find doc url',path,file=sys.stderr)
+                        if OPTIONS.get('debug'): print(info, file=sys.stderr)
+                        yield info
+
+
+
+
+def output_info():
+    if OPTIONS.get('mode').startswith('tsv'):
+        header = OPTIONS.get('mode').endswith('h')
+        df = pd.DataFrame(ISSUEINFO)
+        df.to_csv(sys.stdout,sep="\t",index=False,header=header)
+    else:
+        for issue_info in sorted(ISSUEINFO,key=lambda x:x['article_docid']):
+            print("\t".join(str(issue_info[key]) for key in sorted(issue_info)))
+
 
 
 
@@ -201,9 +351,13 @@ if __name__ == '__main__':
     parser.add_option('-d', '--debug',
                       action='store_true', dest='debug', default=False,
                       help='print debug information')
+    parser.add_option('-m', '--mode',
+                      action='store', dest='mode', default='tsvh',type=str,
+                      help='output mode tsvh: tsv with header (%default)')
 
     (options, args) = parser.parse_args()
-    if options.debug:
-        print >> sys.stderr, "options=",options
+    OPTIONS.update(vars(options))
+    if OPTIONS['debug']:
+        print("options=",OPTIONS, file=sys.stderr)
 
-    main(args, options)
+    main(args)
