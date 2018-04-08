@@ -5,15 +5,19 @@
  - Each issue consists of several articles  In earlier editions, more than one article can appear on one page. 
 
 The schema for page numbering in volumes changes starting with the year 1998. Before 1.1.1998, the page numbering of each volume starts from 1. 
-The index of keywords is published separately for each volume (and each text reference included the volume number and the page number, for instance, https://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10046396).
-After 1.1.1998 the pages of a whole year are numbered consecutively and the index of keywords directly references the (unique) page numbers of a volume (https://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10054877).
+The index of keywords is published separately for each volume (and each text reference included the volume number and the page number, for instance, <https://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10046396>).
+After 1.1.1998 the pages of a whole year are numbered consecutively and the index of keywords directly references the (unique) page numbers of a volume (<https://www.amtsdruckschriften.bar.admin.ch/viewOrigDoc.do?id=10054877>).
 
 Starting from 22 June 1999, there is no volume organization anymore.
 
-Sometimes the official document does not contain anything due to some data privacy. For instance, https://www.admin.ch/opc/de/federal-gazette/2016/1506.pdf https://www.admin.ch/opc/de/federal-gazette/2015/1376.pdf
+Sometimes the official document does not contain anything due to some data privacy. For instance, <https://www.admin.ch/opc/de/federal-gazette/2016/1506.pdf> or <https://www.admin.ch/opc/de/federal-gazette/2015/1376.pdf>.
 
 
-## Documentation
+## Documentation of Corpus Download and Processing
+The download and and build process of the corpus is defined via `make` targets in the file `Makefile`.
+The following documentation describes the different steps on a conceptual level and with example calls of `make`.
+
+
 ### Downloading the HTML index files with all meta information for a given language and time period
 
 We use `wget` to download all html files with relevant information into a folder structure under `www.admin.ch`.
@@ -44,8 +48,8 @@ This results in a unique identifier as each article starts on its own page in th
 `data/{LANG}/{YYYY}/{YYYY}-{MM}-{DD}/{ARTICLEID}.pdf`
 
 The download process is a two-step process:
- 1. The script `lib/gf_download.py` reads the `article-info-de.tsv` and checks whether the file is already downloaded. If not, then the corresponding shell commands are emitted. The make target `todo-download-target` creates the shell files `todo-download-{LANG}.sh`.
- 2. The emitted shell commands needs to be run by the user.
+ 1. The script `lib/gf_download.py` reads the `article-info-de.tsv` and checks whether the file is already downloaded. If not, then the corresponding shell commands are emitted. The make target `todo-download-target` creates the shell files `todo-download-{LANG}.bash`.
+ 2. The emitted shell commands in `todo-download-{LANG}.bash` needs to be run by the user.
 
 A download limit rate of 500kb seems reasonable for throttling the process.
 
