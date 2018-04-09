@@ -12,6 +12,7 @@ import os
 import pandas as pd
 from optparse import OptionParser
 from random import shuffle
+import magic
 
 __author__ = "Simon Clematide"
 __email__ = "siclemat@cl.uzh.ch"
@@ -43,10 +44,12 @@ def output_wget_commands(records):
     downloads = 0
     nodownloads = 0
     MKDIRCMD = ' mkdir -p {OUTPUTDIR}\n'
-    WGETCMD = ' wget --limit-rate=500k {OPTIONS} {URL} -O {OUTPUTDIR}/{OUTPUTFILE}\n'
+    WGETCMD = ' wget --limit-rate=500k {OPTIONS} "{URL}" -O {OUTPUTDIR}/{OUTPUTFILE}\n'
     info = {}
     for r in records:
         info['URL'] = r['article_pdf_url']
+        if 'amtsdruckschriften' in info['URL']: # Big PDF files need this parameter for download
+            info['URL'] += '&action=open'
         info['OPTIONS'] = ''
         info['OUTPUTDIR'] = os.path.join(OPTIONS.get('data_dir'),r['volume_language'],r['issue_date'][:4],r['issue_date'])
         info['OUTPUTFILE'] = r['article_docid']+'.pdf'
@@ -54,11 +57,12 @@ def output_wget_commands(records):
         if not os.path.exists(info['OUTPUTDIR']):
             command = MKDIRCMD.format(**info)
         pdffile = os.path.join(info['OUTPUTDIR'],info['OUTPUTFILE'])
-        if not os.path.exists(pdffile) or os.stat(pdffile).st_size == 0:
+        if not os.path.exists(pdffile) or os.stat(pdffile).st_size == 0 or not 'pdf' in magic.from_file(pdffile, mime=True):
             command += WGETCMD.format(**info)
             downloads += 1
         else:
             print('#INFO-FILE-EXISTS',pdffile, file=sys.stderr)
+
             nodownloads += 1
         if not command.isspace():
             print(command)
@@ -85,7 +89,7 @@ if __name__ == '__main__':
                       action='store', dest='mode', default='wget',type=str,
                       help='output wget: Emit wget commands for missing files (%default)')
     parser.add_option('-D', '--data_dir',
-                      action='store', dest='data_dir', default='data',type=str,
+                      action='store', dest='data_dir', default='data_pdf',type=str,
                       help='data dir  (%default)')
 
     (options, args) = parser.parse_args()
