@@ -99,8 +99,13 @@ all-text-target: de-text-target fr-text-target it-text-target
 
 $(DATA_TEXT_DIR)/%.text:$(DATA_DIR)/%.pdf
 	mkdir -p $(@D) && \
-	tet --text --outfile $@ -v 3 $< > $@.log
+	if [[ $$(basename $(<D) ) < "1999-06-22" ]] ;\
+	then\
+		tet --text --lastpage last-1 --outfile $@ -v 3 $< > $@.log ; \
+	else \
+		tet --text --outfile $@ -v 3 $< > $@.log ; \
+	fi
 
-
+include lib/fg-txt-by-year.mk
 
 SHELL:=/bin/bash

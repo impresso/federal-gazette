@@ -57,7 +57,7 @@ def output_wget_commands(records):
         if not os.path.exists(info['OUTPUTDIR']):
             command = MKDIRCMD.format(**info)
         pdffile = os.path.join(info['OUTPUTDIR'],info['OUTPUTFILE'])
-        if not os.path.exists(pdffile) or os.stat(pdffile).st_size == 0 or not 'pdf' in magic.from_file(pdffile, mime=True):
+        if not os.path.exists(pdffile) or os.stat(pdffile).st_size == 0 or (not 'pdf' in magic.from_file(pdffile, mime=True) if OPTIONS['file_type_check'] else False):
             command += WGETCMD.format(**info)
             downloads += 1
         else:
@@ -88,6 +88,9 @@ if __name__ == '__main__':
     parser.add_option('-m', '--mode',
                       action='store', dest='mode', default='wget',type=str,
                       help='output wget: Emit wget commands for missing files (%default)')
+    parser.add_option('-N', '--file_type_check',
+                      action='store_false', dest='file_type_check', default=True,
+                      help='do not perform a file type check for PDF files (%default)')
     parser.add_option('-D', '--data_dir',
                       action='store', dest='data_dir', default='data_pdf',type=str,
                       help='data dir  (%default)')
