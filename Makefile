@@ -106,6 +106,7 @@ $(DATA_TEXT_DIR)/%.text:$(DATA_DIR)/%.pdf
 		tet --text --outfile $@ -v 3 $< > $@.log ; \
 	fi
 
+
 include lib/fg-txt-by-year.mk
 
 SHELL:=/bin/bash
