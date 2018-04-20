@@ -68,6 +68,14 @@ A download limit rate of 500kb seems reasonable for throttling the process.
 
 raw text files (as of 2016) can be found on ICL servers: `/mnt/storage/clfiles/resources/data/corpora/bb-ff-ff/v2016`
 
+#### Creating per page text output
 
+For topic modeling and the like, a page-wise output is desired. The corresponding script which achieves this output can be found in `/mnt/storage/karr/projects/climpresso/comhum18/lib` and is called `tetml2text.py`. It basically works on every other tet output as well (--> input and output folders are hard wired in the script, as well the treatment of different filename input --> switch in federal gazette at 1999/15/06).
+
+Simply call `python tetml2text.py`. It produces the one-page-per-file-output for all languages.
+
+The output will be a zip folder containing the files (one page per file). Paragraphs are separated by two newlines.
+
+ATTENTION: There might be an issue with the German version (script output a warning "Duplicate File ...").
 
 
