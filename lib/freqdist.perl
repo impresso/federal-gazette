@@ -5,7 +5,7 @@ use open qw( :encoding(UTF-8) :std );
 %freq = ();
 while (<>) {
   chomp;
-  tr/\f\v//d;
+  s/[\f\v]//g;
   $freq{$_}++;
   if (s/^.+-([^-]{2,})$/\1/) {
   	$freq{$_}++;

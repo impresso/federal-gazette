@@ -84,7 +84,12 @@ all-textml-word-target: de-textml-word-target fr-textml-word-target it-textml-wo
 
 $(DATA_TETML_WORD_DIR)/%.word.tetml:$(DATA_DIR)/%.pdf
 	mkdir -p $(@D) && \
-	tet -m word --outfile $@ -v 3 $< > $@.log
+	if [[ $$(basename $(<D) ) < "1999-06-22" ]] ;\
+	then\
+		tet -m word --lastpage last-1 --outfile $@ -v 3 $< > $@.log ; \
+	else \
+		tet -m word --outfile $@ -v 3 $< > $@.log ; \
+	fi
 
 DATA_TEXT_DIR?=data_text
 de-text-files:=$(subst $(DATA_DIR),$(DATA_TEXT_DIR),$(de-pdf-files:.pdf=.text))

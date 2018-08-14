@@ -1,7 +1,7 @@
 
 
-TXT_BY_YEAR?=txt-by-year
-PUBLISH_DIR?=/mnt/storage/clfiles/resources/data/corpora/bb-ff-ff/v2016/txt
+TXT_BY_YEAR ?= txt-by-year
+PUBLISH_DIR ?= /mnt/storage/clfiles/resources/data/corpora/bb-ff-ff/v2016/txt
 
 # Collect all texts from a language and compress them locally
 collect-%:
@@ -26,8 +26,8 @@ clean:
 	rm -rf $(DATA_OUT_DIR_de) $(DATA_OUT_DIR_it) $(DATA_OUT_DIR_fr)
 
 
-SENTTXT_BY_YEAR?=senttxt-by-year
-SENTTXT_PUBLISH_DIR?=/mnt/storage/clfiles/resources/data/corpora/bb-ff-ff/v2016/senttxt
+SENTTXT_BY_YEAR ?= senttxt-by-year
+SENTTXT_PUBLISH_DIR ?= /mnt/storage/clfiles/resources/data/corpora/bb-ff-ff/v2016/senttxt
 
 # Collect all texts from a language and compress them locally
 collect-senttxt-%:
@@ -38,17 +38,17 @@ collect-senttxt-%:
 	done
 
 
-de-senttxt-byyear-files:=$(wildcard senttxt-by-year/de/*senttxt.gz)
-de-senttxt-byyear-gertwol-files:=$(de-senttxt-byyear-files:.gz=.gertwol.gz)
+de-senttxt-byyear-files := $(wildcard senttxt-by-year/de/*senttxt.gz)
+de-senttxt-byyear-gertwol-files := $(de-senttxt-byyear-files:.gz=.gertwol.gz)
 
 de-senttxt-byyear-gertwol-target : $(de-senttxt-byyear-gertwol-files)
 
 %.gertwol.gz: %.gz
-	zcat $< | tr -s " " "\n" | sort -u | ls-gertwol-utf8 | gertwolscore | gertwol2prolog-utf8.perl -nomorph | gertwol2prolog-utf8  -withpragma SELTEN -txt | gzip -c > $@
+	zcat $< | tr -s " " "\n" | sort -u |ls-gertwol-utf8 | gertwolscore | gertwol2prolog-utf8.perl -nomorph | gertwol2prolog-utf8  -withpragma SELTEN -txt | gzip -c > $@
 
 senttxt-gertwol-stts-lex.tsv: $(de-senttxt-byyear-gertwol-files)
 	zcat $+ | tr -d "\f" |sort -u > $@.tmp
-	cut -f 1 $@.tmp | perl -lne 'next unless /-/; print if s/^.+-([^-]{2,})$$/\1/' | sort -u |ls-gertwol-utf8 | gertwolscore | gertwol2prolog-utf8.perl -nomorph | gertwol2prolog-utf8  -withpragma SELTEN -txt > $@.tmp2
+	cut -f 1 $@.tmp | perl -lne 'next unless /-/; print if s/^.+-([^-]{2,})$$/\1/' | sort -u |perl lib/casing_variants.perl | ls-gertwol-utf8 | gertwolscore | gertwol2prolog-utf8.perl -nomorph | gertwol2prolog-utf8  -withpragma SELTEN -txt > $@.tmp2
 	sort -u $@.tmp $@.tmp2 > $@ #&& rm -f $@.tmp $@.tmp2
 
 senttxt-word-freqdist.tsv: $(de-senttxt-byyear-files)
@@ -59,7 +59,17 @@ senttxt-gertwol-lex.tsv:
 		find $$y -name "*.cuttered.sent.txt" -exec perl -lne 's/#ST#//;print' "{}" + | \
 		tr -s " " "\n" | sort -u | ls-gertwol-utf8 | gertwolscore | gertwol2prolog-utf8.perl -nomorph | gertwol2prolog-utf8  -withpragma SELTEN -txt ; \
 	done | sort -u   > $@
+senttxt-by-year/de/18YY-senttxt-gertwol.unknown.txt:
+	zcat senttxt-by-year/de/18??.senttxt.gertwol.gz | perl -lane 'print $$F[0] if $$F[1] eq "<unknown>";' | sort -u > senttxt-by-year/de/18YY-senttxt-gertwol.unknown.txt
 
+senttxt-by-year/de/18YY-senttxt-word-freqdist.tsv: $(de-senttxt-byyear-files)
+	zcat senttxt-by-year/de/18??.senttxt.gz | tr -s "\v\f" "  " | tr -s " " "\n" | lib/freqdist.perl > $@
+
+senttxt-by-year/de/1920YY-senttxt-word-freqdist.tsv: $(de-senttxt-byyear-files)
+	zcat senttxt-by-year/de/19??.senttxt.gz senttxt-by-year/de/20??.senttxt.gz| tr -s "\v\f" "  " | tr -s " " "\n" | lib/freqdist.perl > $@
+
+senttxt-by-year/de/1920YY-senttxt-gertwol.unknown.txt:
+	zcat senttxt-by-year/de/19??.senttxt.gertwol.gz senttxt-by-year/de/20??.senttxt.gertwol.gz | perl -lane 'print $$F[0] if $$F[1] eq "<unknown>";' | sort -u > senttxt-by-year/de/1920YY-senttxt-gertwol.unknown.txt
 
 
 SHELL:=/bin/bash
