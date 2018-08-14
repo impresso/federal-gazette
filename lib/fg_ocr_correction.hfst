@@ -1,0 +1,27 @@
+
+# Gemerate Varoamts
+
+define r000 {sehast} (->) {schaft} , {aneh} (->) {auch} ;
+
+define r101 {nnd} (->) {und}, {nng} (->) {ung},{v} (->) {p}, {V} (->) {P} ;
+define r102 {eh} (->) {ch} ;
+define r103 {o} (->) ö, {u} (->) ü, {a} (->) ä ;
+define r100 r101 .o. r102 .o. r103 ;
+
+
+
+# Kautons aneh
+define r200 s (->) f, f (->) s ;
+
+define r301 [E|R|B|P] (->) [C|E|R|B|P] || .#. _  ;
+
+define r302 [O] (->) [Q], [Q] (->) [O], ß (->) B, © (->) G || .#. _  ;
+define r303 [R] (->) [N], [N] (->) [R], ü (->) U || .#. _  ;
+define r300 r301 .o. r302 .o. r303 ;
+read regex r000 .o. r100 .o. r200 .o. r300 ;
+
+print sigma
+save stack lib/fg_ocr_correction.hfsmo
+
+write att > lib/fg_ocr_correction.att
+

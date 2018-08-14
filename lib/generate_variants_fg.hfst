@@ -1,0 +1,27 @@
+
+# Gemerate Varoamts
+define r100 {th} (->) t, {Th} (->) T ; #
+define r200 {oe} (->) ö, {ae} (->) ä, {ue} (->) ü, {Oe} (->) Ö, {Ue} (->) Ü, {Ae} (->) Ä ;
+
+define r300 {ss} (->) {ß}, {ß} (->) {ss} ;
+
+
+# acceptirt
+define r400 {ir} (->) {ier} ;
+
+
+define r501 {cc} (->) [{kz}|{ck}];
+define r502 C (->) Z, c (->) z;
+define r500 r501 .o. r502;
+
+define r600 {aa} (->) a;
+
+
+define r700 J (->) I || .#. _ ;
+
+define r800 z (->) {tz}, k (->) {ck} ;
+
+read regex r100 .o. r200 .o. r300 .o. r400 .o. r500 .o. r600 .o. r700 .o. r800;
+
+save stack generate_variants_fg.hfsmo
+

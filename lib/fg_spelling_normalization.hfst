@@ -1,0 +1,39 @@
+
+# Gemerate Varoamts
+define r100 {th} (->) t, {Th} (->) T, {dt} (->) [d|t] ,y (->) i; #
+define r200 {oe} (->) ö, {ae} (->) ä, {ue} (->) ü, {Oe} (->) Ö, {Ue} (->) Ü, {Ae} (->) Ä ;
+
+define r301 {ss} (->) {ß};
+define r302  {ß} (->) [{ss}|s] ;
+define r300 r301 .o. r302 ;
+
+define r500 z (->) {tz}, k (->) {ck} ;
+
+
+# acceptirt
+define r400 {ir} (->) {ier} ;
+
+
+# Wädensweil Getraide Wittwe  Oberstlieutenant Centimes Stimmzeddel
+define r600 {aa} (->) a;
+
+# Jtalien  Iahr
+define r701 J (->) I, I (->) J || .#. _ ;
+# Aperitif
+define r702 {if} (->) {iv} || _ .#. ;
+# Hülfe sämmlich Gränze
+define r703 {ülf} (->) {ilf}, {sowol} (->) {sowohl}, {gieb} (->) {gib}, {üdget} (->) {udget}, {eddel} (->) {ettel}, {üreaux} (->) {üros}, {üreau} (->) {üro}, {Komite} (->) {Komitee}, {Kontrole} (->) {Kontrolle}, {mmt} (->) {mt} ;
+
+define r700 r701 .o. r702 .o. r703;
+
+define r801 {cc} (->) [{kz}|{ck}];
+define r802 C (->) Z .o.  [ c (->) [z|k] || [ \ s | .#.  ] _ \ h ] ;
+define r800 r801 .o. r802;
+
+#define NOEQUAL ?+ @-> 0 || .#. ?* _ ?* .#. ;
+
+read regex  [r100 .o. r200 .o. r300 .o. r400 .o. r500 .o. r600 .o. r700 .o. r800 ]  ;
+
+save stack lib/fg_spelling_normalization.hfsmo
+
+write att > lib/fg_spelling_normalization.att
