@@ -1,19 +1,19 @@
+DATA_DIR?= ../data_text
 
+# Make targets for formats derived from the text output
+tettext-$(FILE_LANG)-by-year-files:=$(wildcard $(DATA_DIR)/$(FILE_LANG)/$(YEAR)/*/*.text)
 
+cuttered-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cuttered.txt)
+sent-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cuttered.sent.txt)
 
-# Make targets for formats derived from the text text output
+# cuttered-$(FILE_LANG)-text-target: $(cuttered-$(FILE_LANG)-text-files) $(sent-$(FILE_LANG)-text-files)
 
-tettext-by-year-files:=$(wildcard data_text/de/????/*/*.text)
-
-cuttered-de-text-files:=$(tettext-by-year-files:.text=.cuttered.txt)
-sent-de-text-files:=$(tettext-by-year-files:.text=.cuttered.sent.txt)
-
-cuttered-de-text-target: $(cuttered-de-text-files) $(sent-de-text-files)
-
-##$(info ,$(tettext-by-year-files))
+$(info $$var is $(DATA_DIR))
+##$(info $$var is $(tettext-$(FILE_LANG)-by-year-files))
+$(info $$var is $(cuttered-$(FILE_LANG)-text-files))
 
 %.cuttered.txt: %.text
-	perl -lne 's/\d*\s*\f\s*\d*//;print' < $< | cutter de  > $@
+	perl -lne 's/\d*\s*\f\s*\d*//;print' < $< | cutter $(FILE_LANG) > $@
 
 %.cuttered.sent.txt: %.cuttered.txt
 	python3 lib/cuttered2sent.py $< > $@
