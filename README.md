@@ -1,4 +1,4 @@
-# Federal Gazette Corpus
+# Federal Gazette Corpus 
 ## General structure of the federal gazette publications
  - The federal gazette has one or more volumes (German "Band") per year (numbered from I by roman numbers). Before 1998, each volume started with page number 1.
  - Each volume consists of several issue (German "Heft") (numbered from 1 by arabic numbers within each volume). 
