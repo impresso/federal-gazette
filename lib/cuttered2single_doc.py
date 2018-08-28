@@ -14,7 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-i', '--input',  required=True, action='store',
-                        dest='input_dir', help='input folder with xml data')
+                        dest='input_dir', help='input folder with txt-documents')
     parser.add_argument('-o', '--output', required=True,
                         action='store', dest='out_file', help='output file that collects all sentences of each article')
 
@@ -37,11 +37,11 @@ def main():
     outfile = args.out_file + '.txt'
 
     with open(outfile, mode='w', encoding='utf-8') as f_out:
+        # write file or dir id
+        f_out.write('{}\n'.format(input_dir))
+        
         # iterate over relevant files in the given input folder
         for infile in glob.iglob(input_dir+'/**/*cuttered.sent.txt', recursive=True):
-
-            # write file or dir id
-            f_out.write('{}\n'.format(input_dir))
 
             with open(infile, mode='r', encoding='utf-8') as f_in:
                 # write article id
@@ -50,7 +50,7 @@ def main():
                     f_out.write(line.strip() + '\n')
 
                 f_out.write('.EOA\n')
-            f_out.write('.EOB\n')
+        f_out.write('.EOB\n')
 
 
 if __name__ == '__main__':
