@@ -220,13 +220,24 @@ def compute_max_alignment(trans_data, trg_data):
             diag = matrix[i][j]  # cell diagonally before current
             current = matrix[i+1][j+1]  # current cell
 
-            # calculate BLEU score between current translated source and target article:
+            art1_length = sum([len(sent.split()) for sent in article1])
+            art2_length = sum([len(sent.split()) for sent in article2])
+            ratio_length = min((art1_length, art2_length)) / float(max((art1_length, art2_length)))
 
-            refs = cook_refs([' '.join(article2).split()[1:]])
-            test = cook_test(' '.join(article1).split()[1:], refs)
-            raw_score = score_cooked([test])
+            if True: # (ratio_length > 0.6 and ratio_length <= 1)
+                # calculate BLEU score between current translated source and target article:
+                refs = cook_refs([' '.join(article2).split()[1:]])
+                test = cook_test(' '.join(article1).split()[1:], refs)
+                raw_score = score_cooked([test])
+
+            else:
+                # set an artificial BLEU score without actually computing it
+                # to speed up alignment process
+                raw_score = 0.01
+
             # score if alignment of current cell is used (raw_score + score of diagonal cell before)
             score = diag[0] + raw_score
+
 
             #### 4 possible moves to go forward in the matrix ####
 
