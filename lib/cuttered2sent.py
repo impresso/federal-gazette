@@ -23,7 +23,7 @@ sys.stderr = codecs.getwriter('UTF-8')(sys.stderr.buffer)
 sys.stdout = codecs.getwriter('UTF-8')(sys.stdout.buffer)
 sys.stdin = codecs.getreader('UTF-8')(sys.stdin.buffer)
 
-OPTIONS = {"sentfinal": "!;.?"}
+OPTIONS = {"sentfinal": "!.?"}
 
 
 def process(a):
