@@ -266,9 +266,6 @@ def compute_max_alignment(trans_data, trg_data):
                 current[2] = diag[2].copy()
                 current[2][j] = i
 
-            print matrix[-1][-1][1]
-            raise NotImplementedError
-
     # return the resulting alignments with their BLEU scores
     return matrix[-1][-1][1]
 
