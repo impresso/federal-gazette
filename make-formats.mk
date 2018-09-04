@@ -14,8 +14,14 @@ cuttered-$(FILE_LANG)-text-target: $(cuttered-$(FILE_LANG)-text-files) $(sent-$(
 #$(info $$var is $(tettext-$(FILE_LANG)-by-year-files))
 #$(info $$var is $(cuttered-$(FILE_LANG)-text-files))
 
+# The output of the cutter doesn't isolate all abbreviations properly.
+# Hence, we apply post-processing to merge short tokens (up to 4-gram) and
+# the period when followed by a number, a capitalized word oder a lowercased word.
 %.cuttered.txt: %.text
-	perl -lne 's/\d*\s*\f\s*\d*//;print' < $< | cutter $(FILE_LANG) > $@
+	perl -lne 's/\d*\s*\f\s*\d*//;print' < $< | cutter $(FILE_LANG) | \
+	tr '\n' ' ' | sed -r "s/(\b\w{1,}) \. ([0-9]|[a-z]|[A-Z]{2})/\1. \2/g" | \
+	tr ' ' '\n' > $@
+
 
 %.cuttered.sent.txt: %.cuttered.txt
 	python3 lib/cuttered2sent.py $< > $@
