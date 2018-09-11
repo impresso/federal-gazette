@@ -202,14 +202,21 @@ def compute_max_alignment(trans_data, trg_data):
     #   {target article index : source article index, ...} --> for easy access to occupied target indices
     # ]
 
+    n_docs_trans = len(trans_data)
+    n_docs_trg = len(trg_data)
+
     matrix = [[[0., defaultdict(tuple), defaultdict(int)] for art2 in range(
-        0, len(trg_data)+1)] for art in range(0, len(trans_data)+1)]
+        0, n_docs_trg+1)] for art in range(0, n_docs_trans+1)]
+
+
 
     # iterate over each cell (i,j)
     for i, article1 in enumerate(trans_data):
+        # Show progress
+        if n_docs_trans % 20:
+            print 'Compute BLEU alignment scores of document {} from {}.'.format(i, n_docs_trans)
+
         for j, article2 in enumerate(trg_data):
-
-
 
             #### settings for current matrix move ####
 
@@ -220,20 +227,22 @@ def compute_max_alignment(trans_data, trg_data):
             diag = matrix[i][j]  # cell diagonally before current
             current = matrix[i+1][j+1]  # current cell
 
+
+
+            # Only compute BLEU score when the texts are similar in length
+            # (number of tokens). Otherwise, an arbitrary low score is defined
+            # to speed up the alignment process
             art1_length = sum([len(sent.split()) for sent in article1])
             art2_length = sum([len(sent.split()) for sent in article2])
             ratio_length = min((art1_length, art2_length)) / float(max((art1_length, art2_length)))
 
-            if True: # (ratio_length > 0.6 and ratio_length <= 1)
-                # calculate BLEU score between current translated source and target article:
+            if (ratio_length > 0.6 and ratio_length <= 1):
+                # compute BLEU score between current translated source and target article:
                 refs = cook_refs([' '.join(article2).split()[1:]])
                 test = cook_test(' '.join(article1).split()[1:], refs)
                 raw_score = score_cooked([test])
-
             else:
-                # set an artificial BLEU score without actually computing it
-                # to speed up alignment process
-                raw_score = 0.01
+                raw_score = 0.001
 
             # score if alignment of current cell is used (raw_score + score of diagonal cell before)
             score = diag[0] + raw_score
@@ -458,7 +467,7 @@ def main():
 
     print "\n------------------------------------------------------------------"
     print "------------------------------------------------------------------"
-    print "\t\tStarting threads for {0:d} magazines".format(len(src_books))
+    print "\t\tStarting threads for {0:d} text collection(s)".format(len(src_books))
     print "------------------------------------------------------------------"
     print "------------------------------------------------------------------"
 
