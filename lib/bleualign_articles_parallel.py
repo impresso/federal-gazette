@@ -39,6 +39,7 @@ import os.path
 from lxml import etree
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
+from multiprocessing import Queue, Process
 
 # global variables
 # parsing xml with utf-8 encoding and removing blank text
@@ -291,7 +292,7 @@ def compute_max_alignment(trans_data, trg_data):
 ################################################################################
 
 
-def align(src_book, trg_book, trans_book):
+def align(src_book, trg_book, trans_book, queue):
     "performs article alignment for a magazine and its translation"
 
     # split the magazine to articles
@@ -438,7 +439,12 @@ def align(src_book, trg_book, trans_book):
         trg_not_aligned, trg_percent)
     output_str += "\n------------------------------------------------------------------"
 
-    return output_str, src_file, trg_file, definitive_alignments, comparable_alignments
+    # put status message and alignment information on the queue
+    queue.put(output_str)
+    queue.put(src_file)
+    queue.put(trg_file)
+    queue.put(definitive_alignments)
+    queue.put(comparable_alignments)
 
 ################################################################################
 
@@ -461,9 +467,16 @@ def main():
 
     print "\n------------------------------------------------------------------"
     print "------------------------------------------------------------------"
-    print "\t\tStarting alignment process for a collection of {0:d} docs".format(len(src_books))
+    print "\t\tStarting threads for {0:d} text collection(s)".format(len(src_books))
     print "------------------------------------------------------------------"
     print "------------------------------------------------------------------"
+
+
+
+
+    # set up a list of all threads and a queue to store data
+    threads = []
+    queue = Queue()
 
     # iterate over each magazine pair
     for index, src_book in enumerate(src_books):
@@ -472,7 +485,24 @@ def main():
         trans_book = trans_books[index]
 
         # start a new thread to align articles of this magazine pair
-        src_file, trg_file, definitive_alignments, comparable_alignments = align(src_book, trg_book, trans_book)
+        p = Process(target=align, args=(
+            src_book, trg_book, trans_book, queue,))
+        p.start()
+        threads.append(p)
+
+    # for each finished thread
+    for t in threads:
+
+        t.join()
+
+        # print the status message
+        print queue.get()
+
+        # get the alignment information
+        src_file = queue.get()
+        trg_file = queue.get()
+        definitive_alignments = queue.get()
+        comparable_alignments = queue.get()
 
         # write alignments to xml file
         if args.comp:
