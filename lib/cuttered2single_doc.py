@@ -34,12 +34,12 @@ def main():
         input_dir += '/'
 
     # create outfile name
-    outfile = args.out_file + '.txt'
+    outfile = args.out_file
 
     with open(outfile, mode='w', encoding='utf-8') as f_out:
         # write file or dir id
         f_out.write('{}\n'.format(input_dir))
-        
+
         # iterate over relevant files in the given input folder
         for infile in glob.iglob(input_dir+'/**/*cuttered.sent.txt', recursive=True):
 
