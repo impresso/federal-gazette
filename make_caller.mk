@@ -34,4 +34,4 @@ de_fr_%_all.txt: de_%_all.txt
 # Compute BLEU-alignments for German and French documents
 de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 	python lib/bleualign_articles.py -src $(word 1, $^) -trg $(word 2, $^) \
-	-t $(word 3, $^) -o > $@
+	-t $(word 3, $^) -o $@
