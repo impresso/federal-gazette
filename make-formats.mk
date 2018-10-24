@@ -1,5 +1,5 @@
 DIR_IN?= data_text
-DIR_OUT?= data_alignments
+DIR_OUT?= data_alignment
 FILE_OUT?= $(DIR_OUT)/$(FILE_LANG)_$(YEAR)_all.txt
 
 
@@ -19,7 +19,6 @@ sent-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cutter
 # the period when followed by a number, a capitalized word oder a lowercased word.
 %.cuttered.txt: %.text
 	perl -lne 's/\d*\s*\f\s*\d*//;print' < $< | cutter $(FILE_LANG) -T  > $@
-
 
 # write one tokenized sentence per line
 %.cuttered.sent.txt: %.cuttered.txt
