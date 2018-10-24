@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__ = "Chantal Amrhein <chantal.amrhein@uzh.ch>"
@@ -43,6 +43,7 @@ from sklearn.metrics.pairwise import linear_kernel
 # global variables
 # parsing xml with utf-8 encoding and removing blank text
 parser = etree.XMLParser(remove_blank_text=True, encoding="utf-8")
+
 
 ################################################################################
 
@@ -213,7 +214,7 @@ def compute_max_alignment(trans_data, trg_data):
     for i, article1 in enumerate(trans_data):
         # Show progress
         if n_docs_trans % 20==0:
-            print 'Compute BLEU alignment scores of document {} from {}.'.format(i, n_docs_trans)
+            print('Compute BLEU alignment scores of document {} from {}.'.format(i, n_docs_trans))
 
         for j, article2 in enumerate(trg_data):
 
@@ -348,7 +349,7 @@ def align(src_book, trg_book, trans_book):
                 score = data[1]
                 src_art = src_data[art]
                 trg_art = trg_data[data[0]]
-        except TypeError, IndexError:
+        except (TypeError, IndexError):
             continue
 
         # if the BLEU score is higher than 0.1 accept them as parallel articles
@@ -459,11 +460,11 @@ def main():
     trg_books = split_articles(trg, ".EOB")
     trans_books = split_articles(translation, ".EOB")
 
-    print "\n------------------------------------------------------------------"
-    print "------------------------------------------------------------------"
-    print "\t\tStarting alignment process for a collection of {0:d} docs".format(len(src_books))
-    print "------------------------------------------------------------------"
-    print "------------------------------------------------------------------"
+    print("\n------------------------------------------------------------------")
+    print("------------------------------------------------------------------")
+    print("\t\tStarting alignment process for a collection of {0:d} docs".format(len(src_books)))
+    print("------------------------------------------------------------------")
+    print("------------------------------------------------------------------")
 
     # iterate over each magazine pair
     for index, src_book in enumerate(src_books):
