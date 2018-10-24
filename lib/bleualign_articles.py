@@ -473,7 +473,10 @@ def main():
         trans_book = trans_books[index]
 
         # start a new thread to align articles of this magazine pair
-        src_file, trg_file, definitive_alignments, comparable_alignments = align(src_book, trg_book, trans_book)
+        output_str, src_file, trg_file, definitive_alignments, comparable_alignments = align(src_book, trg_book, trans_book)
+
+        # print the alignment statistics
+        print(output_str)
 
         # write alignments to xml file
         if args.comp:
