@@ -387,16 +387,20 @@ def align(src_book, trg_book, trans_book):
 
             # else compute how similar the articles are using the tf/idf vectorizer
             else:
-                cosine_similarities = linear_kernel(
-                    tfidf[src_data.index(src_art)], tfidf).flatten()
-                sim_tfidf = cosine_similarities[len(
-                    src_data)+trg_data.index(trg_art)]
+                try:
+                    cosine_similarities = linear_kernel(
+                        tfidf[src_data.index(src_art)], tfidf).flatten()
+                    sim_tfidf = cosine_similarities[len(
+                        src_data)+trg_data.index(trg_art)]
 
-                # if this score is higher than 0.5 accept them as comparable articles
-                if sim_tfidf > 0.5:
-                    output_str += '\n\tsrc art - \033[94m '+src_art[0] + \
-                        ' \tsimilar to\t '+trg_art[0]+' \033[0m\t- trg art'
-                    comparable_alignments[src_art[0]] = trg_art[0]
+                    # if this score is higher than 0.5 accept them as comparable articles
+                    if sim_tfidf > 0.5:
+                        output_str += '\n\tsrc art - \033[94m '+src_art[0] + \
+                            ' \tsimilar to\t '+trg_art[0]+' \033[0m\t- trg art'
+                        comparable_alignments[src_art[0]] = trg_art[0]
+                except IndexError:
+                    print('TODO: fix the tf-idf alignment')
+
 
     # compute how many articles were left unaligned
     src_not_aligned = len(
