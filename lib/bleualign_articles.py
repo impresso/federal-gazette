@@ -383,7 +383,7 @@ def align(src_book, trg_book, trans_book):
             else:
                 try:
                     cos_sim_tfidf = linear_kernel(
-                        tfidf[src_data.index(src_art)], tfidf[trg_data.index(trg_art)])
+                        tfidf[src_data.index(src_art)], len(src_data) + tfidf[trg_data.index(trg_art)])
 
                     # if this score is higher than 0.5 accept them as comparable articles
                     if cos_sim_tfidf > 0.5:
@@ -472,8 +472,11 @@ def main():
         output_str, src_file, trg_file, definitive_alignments, comparable_alignments = align(
             src_book, trg_book, trans_book)
 
-        # print the alignment statistics
+        # print and write the alignment statistics
         print(output_str)
+        fname_stats = args.output[:-4]+"_stats.txt"
+        with open(fname_stats, mode='w') as f:
+            f.write(output_str)
 
         # write alignments to xml file
         if args.comp:
