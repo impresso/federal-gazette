@@ -385,7 +385,7 @@ def align(src_book, trg_book, trans_book):
             else:
                 try:
                     cos_sim_tfidf = linear_kernel(
-                        tfidf[src_data.index(src_art)], len(src_data) + tfidf[trg_data.index(trg_art)])
+                        tfidf[src_data.index(src_art)], tfidf[len(src_data) + trg_data.index(trg_art)])
 
                     # if this score is higher than 0.5 accept them as comparable articles
                     if cos_sim_tfidf > 0.5:
@@ -396,7 +396,8 @@ def align(src_book, trg_book, trans_book):
                     print('TODO: fix the tf-idf alignment')
 
     # compute how many articles were left unaligned
-    src_not_aligned = len(src_data) - len(definitive_alignments.keys()) - len(comparable_alignments.keys())
+    src_not_aligned = len(
+        src_data) - len(definitive_alignments.keys()) - len(comparable_alignments.keys())
     trg_not_aligned = len(
         trg_data) - len(definitive_alignments.values()) - len(comparable_alignments.values())
 
@@ -420,8 +421,6 @@ def align(src_book, trg_book, trans_book):
 
     stats_alignments['found_parallel'] = found_parallel
     stats_alignments['found_comparable'] = found_comparable
-
-
 
     # compute percents for statistics
     aligned_percent = int(float(found_parallel)/dynamic_programming_output*100)
@@ -489,6 +488,10 @@ def main():
         output_str, src_file, trg_file, definitive_alignments, comparable_alignments, stats_alignments = align(
             src_book, trg_book, trans_book)
 
+        # add information to statistics
+        stats_alignments['src'] = args.src
+        stats_alignments['trg'] = args.trg
+
         # print and write the alignment statistics
         print(output_str)
         fname_stats = args.output[:-4]+"_stats.txt"
@@ -501,7 +504,6 @@ def main():
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerow(stats_alignments)
-
 
         # write alignments to xml file
         if args.comp:
