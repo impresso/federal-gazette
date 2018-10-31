@@ -109,7 +109,7 @@ def cook_test(test, args, n=4):
 
     result['correct'] = [0]*n
     counts = count_ngrams(test, n)
-    for (ngram, count) in counts.iteritems():
+    for (ngram, count) in counts.items():
         result["correct"][len(ngram)-1] += min(refmaxcounts.get(ngram,0), count)
 
     return result
