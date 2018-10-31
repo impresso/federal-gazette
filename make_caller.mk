@@ -25,13 +25,13 @@ fr_%_all.txt:
 # Remove square brackets as Moses cannot process them
 de_fr_%_all.txt: de_%_all.txt
 	cat $< | \
-	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/s asfcripts/tokenizer/lowercase.perl | \
+	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/lowercase.perl | \
 	sed -r "s/\[//g" | sed -r "s/\]//g" | \
-	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -threads 5 | \
+	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -v 0 -threads 5 | \
 	sed -r "s/^\.eoa/.EOA/" \
 	> $@
 
 # Compute BLEU-alignments for German and French documents
 de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
-	python lib/bleualign_articles.py -src $(word 1, $^) -trg $(word 2, $^) \
-	-t $(word 3, $^) -o $@
+	python3 lib/bleualign_articles.py -src $(word 1, $^) -trg $(word 2, $^) \
+	-t $(word 3, $^) -o $@ -c
