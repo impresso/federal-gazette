@@ -208,13 +208,12 @@ def compute_max_alignment(trans_data, trg_data):
     matrix = [[[0., defaultdict(tuple), defaultdict(int)] for art2 in range(
         0, n_docs_trg+1)] for art in range(0, n_docs_trans+1)]
 
-
-
     # iterate over each cell (i,j)
     for i, article1 in enumerate(trans_data):
         # Show progress
-        if n_docs_trans % 20==0:
-            print('Compute BLEU alignment scores of document {} from {}.'.format(i, n_docs_trans))
+        if n_docs_trans % 20 == 0:
+            print('Compute BLEU alignment scores of document {} from {}.'.format(
+                i, n_docs_trans))
 
         for j, article2 in enumerate(trg_data):
 
@@ -227,14 +226,13 @@ def compute_max_alignment(trans_data, trg_data):
             diag = matrix[i][j]  # cell diagonally before current
             current = matrix[i+1][j+1]  # current cell
 
-
-
             # Only compute BLEU score when the texts are similar in length
             # (number of tokens). Otherwise, an arbitrary low score is defined
             # to speed up the alignment process
             art1_length = sum([len(sent.split()) for sent in article1])
             art2_length = sum([len(sent.split()) for sent in article2])
-            ratio_length = min((art1_length, art2_length)) / float(max((art1_length, art2_length)))
+            ratio_length = min((art1_length, art2_length)) / \
+                float(max((art1_length, art2_length)))
 
             if (ratio_length > 0.6 and ratio_length <= 1):
                 # compute BLEU score between current translated source and target article:
@@ -246,7 +244,6 @@ def compute_max_alignment(trans_data, trg_data):
 
             # score if alignment of current cell is used (raw_score + score of diagonal cell before)
             score = diag[0] + raw_score
-
 
             #### 4 possible moves to go forward in the matrix ####
 
@@ -309,9 +306,6 @@ def align(src_book, trg_book, trans_book):
     src_file = src_data[0].pop(0)
     trg_file = trg_data[0].pop(0)
     trans_data[0].pop(0)
-
-
-
 
     # get the tfidf matrix in order to find comparable articles later
     tfidf = TfidfVectorizer().fit_transform(trans_raw + trg_raw)
@@ -388,19 +382,16 @@ def align(src_book, trg_book, trans_book):
             # else compute how similar the articles are using the tf/idf vectorizer
             else:
                 try:
-                    cosine_similarities = linear_kernel(
-                        tfidf[src_data.index(src_art)], tfidf).flatten()
-                    sim_tfidf = cosine_similarities[len(
-                        src_data)+trg_data.index(trg_art)]
+                    cos_sim_tfidf = linear_kernel(
+                        tfidf[src_data.index(src_art)], tfidf[trg_data.index(trg_art)])
 
                     # if this score is higher than 0.5 accept them as comparable articles
-                    if sim_tfidf > 0.5:
+                    if cos_sim_tfidf > 0.5:
                         output_str += '\n\tsrc art - \033[94m '+src_art[0] + \
                             ' \tsimilar to\t '+trg_art[0]+' \033[0m\t- trg art'
                         comparable_alignments[src_art[0]] = trg_art[0]
                 except IndexError:
                     print('TODO: fix the tf-idf alignment')
-
 
     # compute how many articles were left unaligned
     src_not_aligned = len(
@@ -466,7 +457,8 @@ def main():
 
     print("\n------------------------------------------------------------------")
     print("------------------------------------------------------------------")
-    print("\t\tStarting alignment process for a collection of {0:d} docs".format(len(src_books)))
+    print("\t\tStarting alignment process for a collection of {0:d} docs".format(
+        len(src_books)))
     print("------------------------------------------------------------------")
     print("------------------------------------------------------------------")
 
@@ -477,7 +469,8 @@ def main():
         trans_book = trans_books[index]
 
         # start a new thread to align articles of this magazine pair
-        output_str, src_file, trg_file, definitive_alignments, comparable_alignments = align(src_book, trg_book, trans_book)
+        output_str, src_file, trg_file, definitive_alignments, comparable_alignments = align(
+            src_book, trg_book, trans_book)
 
         # print the alignment statistics
         print(output_str)
