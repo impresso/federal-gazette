@@ -39,6 +39,7 @@ import os.path
 from lxml import etree
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
+import csv
 
 # global variables
 # parsing xml with utf-8 encoding and removing blank text
@@ -249,7 +250,7 @@ def compute_max_alignment(trans_data, trg_data):
 
             # 1. possible move - merge cell from above and left
             # (if their scores are higher or equal than current score and not the same as the score from diagonal cell before)
-            # this is not a dynamic programming move as we have to compare all alignments from the two cells
+            # this is not a dynamic plrogramming move as we have to compare all alignments from the two cells
             # however it is necessary to be able to merge cells if alignment pairs are overcrossing !
 
             if (above[0] >= score and left[0] >= score) and (above[0] != diag[0] and left[0] != diag[0]):
@@ -328,6 +329,7 @@ def align(src_book, trg_book, trans_book):
     # set up dictionaries for parallel articles and comparable articles
     definitive_alignments = {}
     comparable_alignments = {}
+    stats_alignments = {}
 
     # iterate over all possible alignments found with dynamic programming
     for art, data in alignments.items():
@@ -394,21 +396,32 @@ def align(src_book, trg_book, trans_book):
                     print('TODO: fix the tf-idf alignment')
 
     # compute how many articles were left unaligned
-    src_not_aligned = len(
-        src_data) - len(definitive_alignments.keys()+comparable_alignments.keys())
+    src_not_aligned = len(src_data) - len(definitive_alignments.keys()) - len(comparable_alignments.keys())
     trg_not_aligned = len(
-        trg_data) - len(definitive_alignments.values()+comparable_alignments.values())
+        trg_data) - len(definitive_alignments.values()) - len(comparable_alignments.values())
+
+    stats_alignments['src_not_aligned'] = src_not_aligned
+    stats_alignments['trg_not_aligned'] = trg_not_aligned
 
     # compute how many articles in total
     src_len = len(src_data)
     trg_len = len(trg_data)
 
+    stats_alignments['src_len'] = src_len
+    stats_alignments['trg_len'] = trg_len
+
     # compute how many possible pairs were found with dynamic programming
     dynamic_programming_output = len(alignments)
+    stats_alignments['dp_possible_pairs'] = dynamic_programming_output
 
     # compute how many parallel and how many comparable article pairs were found
     found_parallel = len(definitive_alignments)
     found_comparable = len(comparable_alignments)
+
+    stats_alignments['found_parallel'] = found_parallel
+    stats_alignments['found_comparable'] = found_comparable
+
+
 
     # compute percents for statistics
     aligned_percent = int(float(found_parallel)/dynamic_programming_output*100)
@@ -416,6 +429,10 @@ def align(src_book, trg_book, trans_book):
                              dynamic_programming_output*100)
     src_percent = int(float(src_not_aligned)/src_len*100)
     trg_percent = int(float(trg_not_aligned)/trg_len*100)
+
+    stats_alignments['aligned_percent'] = aligned_percent
+    stats_alignments['src_percent'] = src_percent
+    stats_alignments['trg_percent'] = trg_percent
 
     # add statistics to status message
     output_str += "\n\n------------------------------------------------------------------"
@@ -434,7 +451,7 @@ def align(src_book, trg_book, trans_book):
         trg_not_aligned, trg_percent)
     output_str += "\n------------------------------------------------------------------"
 
-    return output_str, src_file, trg_file, definitive_alignments, comparable_alignments
+    return output_str, src_file, trg_file, definitive_alignments, comparable_alignments, stats_alignments
 
 ################################################################################
 
@@ -469,7 +486,7 @@ def main():
         trans_book = trans_books[index]
 
         # start a new thread to align articles of this magazine pair
-        output_str, src_file, trg_file, definitive_alignments, comparable_alignments = align(
+        output_str, src_file, trg_file, definitive_alignments, comparable_alignments, stats_alignments = align(
             src_book, trg_book, trans_book)
 
         # print and write the alignment statistics
@@ -477,6 +494,14 @@ def main():
         fname_stats = args.output[:-4]+"_stats.txt"
         with open(fname_stats, mode='w') as f:
             f.write(output_str)
+
+        fname_stats = args.output[:-4]+"_stats.csv"
+        with open(fname_stats, 'w', newline='') as csvfile:
+            fieldnames = stats_alignments.keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow(stats_alignments)
+
 
         # write alignments to xml file
         if args.comp:
