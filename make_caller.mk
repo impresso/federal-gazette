@@ -25,8 +25,8 @@ fr_%_all.txt:
 # Remove square brackets as Moses cannot process them
 de_fr_%_all.txt: de_%_all.txt
 	cat $< | \
-	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/lowercase.perl | \
-	sed -r "s/\[//" | sed -r "s/\]//" | \
+	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/s asfcripts/tokenizer/lowercase.perl | \
+	sed -r "s/\[//g" | sed -r "s/\]//g" | \
 	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -threads 5 | \
 	sed -r "s/^\.eoa/.EOA/" \
 	> $@
