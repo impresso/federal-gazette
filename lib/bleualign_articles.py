@@ -492,15 +492,13 @@ def main():
         stats_alignments['src'] = args.src
         stats_alignments['trg'] = args.trg
 
-        # print and write the alignment statistics
+        # print alignment statistics
         print(output_str)
-        fname_stats = args.output[:-4]+"_stats.txt"
-        with open(fname_stats, mode='w') as f:
-            f.write(output_str)
 
+        # write alignment statistics to csv
         fname_stats = args.output[:-4]+"_stats.csv"
         with open(fname_stats, 'w', newline='') as csvfile:
-            fieldnames = stats_alignments.keys()
+            fieldnames = sorted(stats_alignments.keys())
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerow(stats_alignments)
