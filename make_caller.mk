@@ -11,7 +11,7 @@ fr-single-doc-files:=$(patsubst %, $(DIR_OUT)/fr_%_all.txt, $(YEARS))
 de-translated-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
 de-fr-alignments-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_alignments.xml, $(YEARS))
 
-de-fr-alignments-doc-targets: $(de-single-doc-files) $(fr-single-doc-files) $(de-translated-doc-files) $(de-fr-alignments-doc-files)
+de-fr-alignments-doc-targets: $(de-single-doc-files) $(fr-single-doc-files) $(de-translated-doc-files) $(de-fr-alignments-doc-files) overview_stats_alignment.csv
 
 # DE: process extracted text data anually and language-wise
 de_%_all.txt:
@@ -35,3 +35,11 @@ de_fr_%_all.txt: de_%_all.txt
 de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 	python3 lib/bleualign_articles.py -src $(word 1, $^) -trg $(word 2, $^) \
 	-t $(word 3, $^) -o $@ -c
+
+
+# collect all alignment stats and merge them into single csv
+overview_stats_alignment.csv: de_fr_%_alignments.xml
+	head -n 1 *.csv |  sed '2q;d' > csv_header.txt
+	awk 'FNR > 1' *.csv > total_stats_alignment.csv
+	cat csv_header.txt total_stats_alignment.csv > overview_stats_alignment.csv
+	rm csv_header.txt total_stats_alignment.csv
