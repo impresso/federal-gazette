@@ -18,7 +18,10 @@ for fname in glob.glob('*alignments.xml'):
 
     n_elements = len(list(root))
 
-    samples = random.sample(range(0, n_elements), SAMPLE_SIZE)
+    try:
+        samples = random.sample(range(0, n_elements), SAMPLE_SIZE)
+    except ValueError:
+        print('Sample size is large than number of alignments. {} will be skipped'.format(fname))
 
     for id, item in enumerate(root.iter(tag='link')):
         if id in samples:
