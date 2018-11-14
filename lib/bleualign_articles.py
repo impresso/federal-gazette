@@ -139,7 +139,7 @@ def write_alignments_to_xml(alignments, src_name, trg_name, outfile):
         article = etree.SubElement(linkGrp, "link")
         article.set("targType", "article")
         article.set("method", aligned['method'])
-        score = '{:.2f}'.format(aligned['score'])
+        score = '{:.2f}'.format(float(aligned['score']))
         article.set("score", score)
         article.set("xtargets", aligned['src']+";"+aligned['trg'])
 
