@@ -10,7 +10,7 @@ SAMPLE_SIZE = 10
 
 
 dfcols = ['year', 'id', 'src', 'trg', 'method', 'score',
-          'script_head', 'scrip_tail', 'eval', 'comment']
+          'script_head', 'scrip_tail', 'eval_head', 'eval_tail', 'comment']
 df = pd.DataFrame(columns=dfcols)
 
 for fname in glob.glob('*alignments.xml'):
@@ -37,7 +37,7 @@ for fname in glob.glob('*alignments.xml'):
                 src + ") <(tail -n 30 " + trg + ")"
 
             attr = [year, id, src, trg, method, score,
-                    script_head, script_tail, '', '']
+                    script_head, script_tail, '', '', '']
 
             df = df.append(pd.Series(attr, index=dfcols), ignore_index=True)
 
