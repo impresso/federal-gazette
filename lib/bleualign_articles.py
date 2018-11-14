@@ -100,7 +100,7 @@ def split_sentences(articles):
 def num_repr(sentences):
     """extracts a list of numbers from a list of sentences in order of appearance"""
 
-    return [re.sub('[,\.]', '', word) for sentence in sentences for word in sentence.split() if word.isnumeric() or re.match('\d+[,\.]\d+', word)]
+    return [re.sub(r'[,\.]', '', word) for sentence in sentences for word in sentence.split() if word.isnumeric() or re.match(r'\d+[,\.]\d+', word)]
 
 ################################################################################
 
@@ -159,7 +159,7 @@ def merge_cells(current, left, i, j, raw_score):
         # if both alignments are the same or left cell has no alignment -> skip
         if alignment == current[1][art]:
             pass
-        elif alignment[0] == None:
+        elif alignment[0] is None:
             pass
 
         # exchange alignments of current cell for ones from left cell
@@ -411,8 +411,10 @@ def align(src_book, trg_book, trans_book):
                     print('TODO: fix the tf-idf alignment')
 
     # compute how many articles were left unaligned
-    src_not_aligned = len(src_data) - len(definitive_alignments) - len(comparable_alignments)
-    trg_not_aligned = len(trg_data) - len(definitive_alignments) - len(comparable_alignments)
+    src_not_aligned = len(
+        src_data) - len(definitive_alignments) - len(comparable_alignments)
+    trg_not_aligned = len(
+        trg_data) - len(definitive_alignments) - len(comparable_alignments)
 
     stats_alignments['src_not_aligned'] = src_not_aligned
     stats_alignments['trg_not_aligned'] = trg_not_aligned
@@ -421,8 +423,8 @@ def align(src_book, trg_book, trans_book):
     src_len = len(src_data)
     trg_len = len(trg_data)
 
-    stats_alignments['src_len'] = src_len
-    stats_alignments['trg_len'] = trg_len
+    stats_alignments['src_n_docs'] = src_len
+    stats_alignments['trg_n_docs'] = trg_len
 
     # compute how many possible pairs were found with dynamic programming
     dynamic_programming_output = len(alignments)
@@ -432,8 +434,8 @@ def align(src_book, trg_book, trans_book):
     found_parallel = len(definitive_alignments)
     found_comparable = len(comparable_alignments)
 
-    stats_alignments['found_parallel_with_dp'] = found_parallel
-    stats_alignments['found_comparable_with_heuristics'] = found_comparable
+    stats_alignments['dp_parallel_pairs'] = found_parallel
+    stats_alignments['other_similar_(heuristic)'] = found_comparable
 
     # compute percents for statistics
     aligned_percent = int(found_parallel/dynamic_programming_output*100)
@@ -442,9 +444,9 @@ def align(src_book, trg_book, trans_book):
     src_percent = int(src_not_aligned/src_len*100)
     trg_percent = int(trg_not_aligned/trg_len*100)
 
-    stats_alignments['aligned_percent_with_dp'] = aligned_percent
-    stats_alignments['src_percent_not_aligned'] = src_percent
-    stats_alignments['trg_percent_not_aligned'] = trg_percent
+    stats_alignments['dp_rel_aligned'] = found_parallel/dynamic_programming_output
+    stats_alignments['src_rel_aligned'] = found_parallel/src_len
+    stats_alignments['trg_rel_aligned'] = found_parallel/trg_len
 
     # add statistics to status message
     output_str += "\n\n------------------------------------------------------------------"
