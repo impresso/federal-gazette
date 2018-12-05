@@ -2,12 +2,16 @@ DIR_IN?= data_text
 DIR_OUT?= data_alignment
 FILE_OUT?= $(DIR_OUT)/$(FILE_LANG)_$(YEAR)_all.txt
 
+TRANS?= no
+
 
 # Make targets for formats derived from the text output
 tettext-$(FILE_LANG)-by-year-files:=$(wildcard $(DIR_IN)/$(FILE_LANG)/$(YEAR)/*/*.text)
 
 cuttered-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cuttered.txt)
 sent-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cuttered.sent.txt)
+
+trans-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cuttered.sent.trans.txt)
 
 
 #$(FILE_OUT): $(cuttered-$(FILE_LANG)-text-files) $(sent-$(FILE_LANG)-text-files)
@@ -28,7 +32,9 @@ sent-$(FILE_LANG)-text-files:=$(tettext-$(FILE_LANG)-by-year-files:.text=.cutter
 # TODO: Recheck statement as it is probably incorrect (always executed)
 $(FILE_OUT): $(cuttered-$(FILE_LANG)-text-files) $(sent-$(FILE_LANG)-text-files)
 	mkdir -p $(DIR_OUT) && \
-	python3 lib/cuttered2single_doc.py -i $(DIR_IN)/$(FILE_LANG)/$(YEAR) -o $@
+	python3 lib/cuttered2single_doc.py -i $(DIR_IN)/$(FILE_LANG)/$(YEAR) -w /**/*cuttered.sent.txt -o $@
+
+
 
 
 SHELL:=/bin/bash
