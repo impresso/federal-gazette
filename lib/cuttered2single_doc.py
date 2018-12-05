@@ -17,6 +17,8 @@ def parse_args():
                         dest='input_dir', help='input folder with txt-documents')
     parser.add_argument('-o', '--output', required=True,
                         action='store', dest='out_file', help='output file that collects all sentences of each article')
+    parser.add_argument('-w', '--wildcard', required=True,
+                        action='store', dest='wildcard', help='wildcard to select relevant articles')
 
     return parser.parse_args()
 
@@ -41,7 +43,7 @@ def main():
         f_out.write('{}\n'.format(input_dir))
 
         # iterate over relevant files in the given input folder
-        for infile in glob.iglob(input_dir+'/**/*cuttered.sent.txt', recursive=True):
+        for infile in glob.iglob(input_dir+args.wildcard, recursive=True):
 
             with open(infile, mode='r', encoding='utf-8') as f_in:
                 # write article id
