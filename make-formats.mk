@@ -2,8 +2,6 @@ DIR_IN?= data_text
 DIR_OUT?= data_alignment
 FILE_OUT?= $(DIR_OUT)/$(FILE_LANG)_$(YEAR)_all.txt
 
-TRANS?= no
-
 
 # Make targets for formats derived from the text output
 tettext-$(FILE_LANG)-by-year-files:=$(wildcard $(DIR_IN)/$(FILE_LANG)/$(YEAR)/*/*.text)
