@@ -135,7 +135,7 @@ pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
 ### Create new database file with page count
 article-info2-%.tsv: article-info-%.tsv %.pages.tsv
-	python3 federal-gazette/lib/extend_metadata.py -i $< -o $@
+	python3 lib/extend_metadata.py -i $< -o $@
 
 article-info2-files+= article-info2-de.tsv
 article-info2-files+= article-info2-fr.tsv
