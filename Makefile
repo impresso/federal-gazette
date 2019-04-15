@@ -100,7 +100,7 @@ de-text-target: $(de-text-files)
 fr-text-target: $(fr-text-files) 
 it-text-target: $(it-text-files)
 
-all-text-target: de-text-target fr-text-target it-text-target
+all-text-info-target: de-text-info-target fr-text-info-target it-text-info-target
 
 $(DATA_TEXT_DIR)/%.text:$(DATA_DIR)/%.pdf
 	mkdir -p $(@D) && \
@@ -111,6 +111,26 @@ $(DATA_TEXT_DIR)/%.text:$(DATA_DIR)/%.pdf
 		tet --text --outfile $@ -v 3 $< > $@.log ; \
 	fi
 
+
+### PDF info files
+
+de-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(de-pdf-files:.pdf=.pdf.info.txt))
+fr-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(fr-pdf-files:.pdf=.pdf.info.txt))
+it-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(it-pdf-files:.pdf=.pdf.info.txt))
+
+de-pdf-info-target: $(de-pdf-info-files)
+fr-pdf-info-target: $(fr-pdf-info-files) 
+it-pdf-info-target: $(it-pdf-info-files)
+
+all-pdf-info-target: de-pdf-info-target fr-pdf-info-target it-pdf-info-target
+$(info $(de-pdf-info-target))
+$(DATA_DIR)/%.pdf.info.txt: $(DATA_DIR)/%.pdf
+	pdfinfo $< > $@
+
+%.pages.tsv: %-pdf-info-target
+	find data_pdf/$*  -name '*info.txt' -exec grep -H Pages {} \; | perl -lne 's/\.info\.txt:Pages:\s+/\t/;print;' > $@
+
+pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
 include lib/fg-txt-by-year.mk
 
