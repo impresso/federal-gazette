@@ -105,33 +105,27 @@ def num_repr(sentences):
 ################################################################################
 
 
-def write_alignments_to_xml(alignments, src_name, trg_name, outfile):
+def write_alignments_to_xml(alignments, outfile):
     """uses the computed alignments to generate an article alignment xml"""
 
-    if os.path.isfile(outfile):
-        # open existing xml
-        xml = etree.parse(outfile, parser)
-        root = xml.getroot()
-
-    else:
-        # set up xml
-        root = etree.Element('TEI')
-        xml = etree.ElementTree(root)
+    # set up xml
+    root = etree.Element('TEI')
+    xml = etree.ElementTree(root)
 
     # create basic xml structure for new book
     header = etree.SubElement(root, "teiHeader")
-    header.text = src_name[:-7]
+    header.text = alignments[0]['src'][:14] # extract path to language folder
 
     linkGrp = etree.SubElement(root, "linkGrp")
     try:
-        src_lang = re.search('[_./](..)[_./]', src_name).group(1)
-        trg_lang = re.search('[_./](..)[_./]', trg_name).group(1)
+        src_lang = re.search('[_./](..)[_./]', alignments[0]['src']).group(1)
+        trg_lang = re.search('[_./](..)[_./]', alignments[0]['trg']).group(1)
     except AttributeError:
         src_lang = 'X'
         trg_lang = 'X'
     linkGrp.set("lang", src_lang+";"+trg_lang)
     linkGrp.set("targType", "yearbook")
-    linkGrp.set("xtargets", src_name+";"+trg_name)
+    linkGrp.set("xtargets", alignments[0]['src']+";"+alignments[0]['trg'])
 
     # iterate over all articles
     for aligned in alignments:
@@ -207,7 +201,7 @@ def compute_max_alignment(trans_data, trg_data):
     # set up matrix for dynmic programming
     # each matrix cell looks like this:
     # [overall BLEU score for this cell,
-    #   {source article index : (target article index, BLEU score for these articles), ...}
+    #   {source article index : (target article index, BLEU score for this article pair), ...}
     #   {target article index : source article index, ...} --> for easy access to occupied target indices
     # ]
 
@@ -219,11 +213,6 @@ def compute_max_alignment(trans_data, trg_data):
 
     # iterate over each cell (i,j)
     for i, article1 in enumerate(trans_data):
-        # Show progress
-        if n_docs_trans % 20 == 0:
-            print('Compute BLEU alignment scores of document {} from {}.'.format(
-                i, n_docs_trans))
-
         for j, article2 in enumerate(trg_data):
 
             #### settings for current matrix move ####
@@ -258,7 +247,7 @@ def compute_max_alignment(trans_data, trg_data):
 
             # 1. possible move - merge cell from above and left
             # (if their scores are higher or equal than current score and not the same as the score from diagonal cell before)
-            # this is not a dynamic plrogramming move as we have to compare all alignments from the two cells
+            # this is not a dynamic programming move as we have to compare all alignments from the two cells
             # however it is necessary to be able to merge cells if alignment pairs are overcrossing !
 
             if (above[0] >= score and left[0] >= score) and (above[0] != diag[0] and left[0] != diag[0]):
@@ -298,26 +287,16 @@ def compute_max_alignment(trans_data, trg_data):
 ################################################################################
 
 
-def align(src_book, trg_book, trans_book):
+def align(src_articles, trg_articles, trans_articles):
     "performs article alignment for a magazine and its translation"
 
-    # split the magazine to articles
-    src_raw = split_articles(src_book, ".EOA")
-    trg_raw = split_articles(trg_book, ".EOA")
-    trans_raw = split_articles(trans_book, ".EOA")
-
     # split all articles to sentences
-    src_data = split_sentences(src_raw)
-    trg_data = split_sentences(trg_raw)
-    trans_data = split_sentences(trans_raw)
-
-    # remove the file names at top of magazine text
-    src_file = src_data[0].pop(0)
-    trg_file = trg_data[0].pop(0)
-    trans_data[0].pop(0)
+    src_data = split_sentences(src_articles)
+    trg_data = split_sentences(trg_articles)
+    trans_data = split_sentences(trans_articles)
 
     # get the tfidf matrix in order to find comparable articles later
-    tfidf = TfidfVectorizer().fit_transform(trans_raw + trg_raw)
+    tfidf = TfidfVectorizer().fit_transform(trans_articles + trg_articles)
 
     # for dynamic programming to find all alignments exchange trans_data and trg_data if the latter is larger than the former
     if len(trans_data) > len(trg_data):
@@ -330,8 +309,6 @@ def align(src_book, trg_book, trans_book):
     # generate status message
     output_str = ""
     output_str += "\n\nProcessing:"
-    output_str += "\n" + src_file
-    output_str += "\n" + trg_file
     output_str += "\n\n------------------------------------------------------------------\n"
 
     # set up dictionaries for parallel articles and comparable articles
@@ -468,16 +445,14 @@ def align(src_book, trg_book, trans_book):
     # print alignment statistics
     print(output_str)
 
-    return src_file, trg_file, definitive_alignments, comparable_alignments, stats_alignments
+    return definitive_alignments, comparable_alignments, stats_alignments
 
 
-def corpus_figures(book, prefix):
+def corpus_figures(articles, prefix):
 
-    metadata = dict()
+    metadata = {}
 
-    articles = split_articles(book, '.EOA')
     content = ' '.join(articles)
-
     metadata[prefix + '_n_chars'] = len(content)
     metadata[prefix + '_n_tokens'] = len(content.split())
     n_sents = sum([len(split_articles(art, '\n')) for art in articles])
@@ -498,54 +473,70 @@ def main():
     # read all files
     src = read_file(args.src)
     trg = read_file(args.trg)
-    translation = read_file(args.t)
+    trans = read_file(args.t)
 
-    # split to books, articles and to sentences
-    src_books = split_articles(src, ".EOB")
-    trg_books = split_articles(trg, ".EOB")
-    trans_books = split_articles(translation, ".EOB")
+    # remove first and last line of file since there is no volume organization
+    src = src[src.find('\n')+1:src.rfind('\n')]
+    trg = trg[trg.find('\n')+1:trg.rfind('\n')]
+    trans = trans[trans.find('\n')+1:trans.rfind('\n')]
+
+    # split the magazine into articles
+    src_articles = split_articles(src, ".EOA")
+    trg_articles = split_articles(trg, ".EOA")
+    trans_articles = split_articles(trans, ".EOA")
 
     print("\n------------------------------------------------------------------")
     print("------------------------------------------------------------------")
-    print("\t\tStarting alignment process for a collection of {0:d} docs".format(
-        len(src_books)))
+    print("\t\tStarting alignment process of {0:d} articles".format(
+        len(src_articles)))
     print("------------------------------------------------------------------")
     print("------------------------------------------------------------------")
 
-    # iterate over each magazine pair
-    for src_book, trg_book, trans_book in zip(src_books, trg_books, trans_books):
 
-        # start a new thread to align articles of this magazine pair
-        src_file, trg_file, definitive_alignments, comparable_alignments, stats_alignments = align(
-            src_book, trg_book, trans_book)
+    # batch-wise processing of alignment process because of extensive memory consumption
+    # compare split of source article to all potential target articles
+    definitive_alignments = []
+    comparable_alignments = []
+    stats_alignments = {}
 
-        # add additional information to statistics
-        stats_alignments['src'] = args.src
-        stats_alignments['trg'] = args.trg
-        corpus_figures_src = corpus_figures(src_book, 'src')
-        corpus_figures_trg = corpus_figures(trg_book, 'trg')
+    batch_size = 750
 
-        stats_alignments = {**stats_alignments, **
-                            corpus_figures_src, **corpus_figures_trg}
+    for start in range(0, len(src_articles), batch_size):
+        end = start + batch_size
+        print('Compute alignment for batch for document range {} between {}.'.format(
+            start, end))
+        definitive_alignments_temp, comparable_alignments_temp, stats_alignments_temp = align(
+            src_articles[start:end], trg_articles, trans_articles[start:end])
 
-        # write alignment statistics to csv
-        fname_stats = args.output[:-4]+"_stats.csv"
-        with open(fname_stats, 'w', newline='') as csvfile:
-            fieldnames = sorted(stats_alignments.keys())
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerow(stats_alignments)
+        definitive_alignments += definitive_alignments_temp
+        comparable_alignments += comparable_alignments_temp
+        stats_alignments = {k: stats_alignments.get(k, 0) + stats_alignments_temp.get(k, 0) for k in set(stats_alignments) & set(stats_alignments_temp) }
 
-        # write alignments to xml file
-        if args.comp:
-            definitive_alignments += comparable_alignments
-            write_alignments_to_xml(
-                definitive_alignments, src_file, trg_file, args.output)
-        else:
-            write_alignments_to_xml(
-                definitive_alignments, src_file, trg_file, args.output)
-            write_alignments_to_xml(
-                comparable_alignments, src_file, trg_file, args.output[:-4]+"_comparable.xml")
+
+    # add additional information to statistics
+    stats_alignments['src'] = args.src
+    stats_alignments['trg'] = args.trg
+    corpus_figures_src = corpus_figures(src_articles, 'src')
+    corpus_figures_trg = corpus_figures(trg_articles, 'trg')
+
+    stats_alignments = {**stats_alignments, **
+                        corpus_figures_src, **corpus_figures_trg}
+
+    # write alignment statistics to csv
+    fname_stats = args.output[:-4]+"_stats.csv"
+    with open(fname_stats, 'w', newline='') as csvfile:
+        fieldnames = sorted(stats_alignments.keys())
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow(stats_alignments)
+
+    # write alignments to xml file
+    if args.comp:
+        definitive_alignments += comparable_alignments
+        write_alignments_to_xml(definitive_alignments, args.output)
+    else:
+        write_alignments_to_xml(definitive_alignments, args.output)
+        write_alignments_to_xml(comparable_alignments, args.output[:-4]+"_comparable.xml")
 
 
 ################################################################################
