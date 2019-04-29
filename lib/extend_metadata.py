@@ -40,17 +40,18 @@ def main():
     lang = f_in.split('.')[0].split('-')[-1]  # parse language id
 
     df_pages = pd.read_csv(lang+'.pages.tsv', sep='\t', header=None, dtype='object')
-    df_pages = df_pages.rename(columns={0: 'pdf_path', 1: 'page'})
+    df_pages = df_pages.rename(columns={0: 'pdf_path', 1: 'page_count'})
 
     # derive file path
     df['pdf_path'] = 'data_pdf/' + lang + '/' + df['issue_date'].str.split(
         '-').str[0] + '/' + df['issue_date'] + '/' + df['article_docid'] + '.pdf'
     df = pd.merge(left=df, right=df_pages, how='left', on='pdf_path')
 
+    df.sort_values(by=['issue_date', 'article_page_first', 'article_docid'], inplace=True)
+
     df.to_csv(f_out,  sep='\t')
 
 
 ################################################################################
 if __name__ == "__main__":
-
     main()
