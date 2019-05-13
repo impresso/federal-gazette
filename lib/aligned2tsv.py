@@ -26,12 +26,25 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-i", "--input",  required=True,
-                        action="store", dest="f_in", help="input file")
-    parser.add_argument("-o", "--output",  required=True,
-                        action="store", dest="f_out", help="output file")
-    parser.add_argument("-t", "--dir_trans",  required=True,
-                        action="store", dest="dir_trans", help="translation dir")
+    parser.add_argument(
+        "-i", "--input", required=True, action="store", dest="f_in", help="input file"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        action="store",
+        dest="f_out",
+        help="output file",
+    )
+    parser.add_argument(
+        "-t",
+        "--dir_trans",
+        required=True,
+        action="store",
+        dest="dir_trans",
+        help="translation dir",
+    )
 
     return parser.parse_args()
 
@@ -41,7 +54,7 @@ def read_src_translation(f_trans):
         lines = f.readlines()
     # remove header "input_dir" and footer ".EOB"
     lines = lines[1:-1]
-    articles = '\n'.join(lines).split('.EOA')
+    articles = "\n".join(lines).split(".EOA")
 
     # map source file name (first line) to its translated text (subsequent lines)
     trans_articles = {art[0]: art[1:] for art in articles}
@@ -57,12 +70,12 @@ def import_alignments(f_align):
     alignments = {}
 
     # collection of aligned src and trg filename
-    for collection in xml.xpath('//linkGrp'):
-        #files = collection.get('xtargets').split(';')
-        #langs = collection.get('lang').split(';')
+    for collection in xml.xpath("//linkGrp"):
+        # files = collection.get('xtargets').split(';')
+        # langs = collection.get('lang').split(';')
 
         for article in collection.getchildren():
-            src, trg = article.get('xtargets').split(';')
+            src, trg = article.get("xtargets").split(";")
             alignments[src] = trg
 
     return alignments
@@ -77,23 +90,20 @@ def main():
     f_out = args.f_out
     dir_trans = args.dir_trans
 
-    if dir_trans[-1] != '/':
-        dir_trans = dir_trans + '/'
-
-    #src_translations = read_src_translation(f_trans)
+    # src_translations = read_src_translation(f_trans)
 
     alignments = import_alignments(f_align)
 
-    with open(f_out, 'w') as f:
+    with open(f_out, "w") as f:
         for src, trg in alignments.items():
             # set relative path to translation file
-            f_parts = src.split('/')
+            f_parts = src.split("/")
             year = f_parts[-3]
             f_trans = f_parts[-1]
-            trans = ''.format(dir_trans, year, f_trans)
+            trans = "/".join([dir_trans, year, f_trans])
 
-            line = '{}\t{}\t{}'.format(src, trg, trans)
-            f.write(line+'\n')
+            line = "\t".join([src, trg, trans])
+            f.write(line + "\n")
 
 
 ################################################################################
