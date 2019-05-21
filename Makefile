@@ -12,6 +12,7 @@ DATA_DIR?= data_pdf
 help:
 	# make download-index
 	# make article-info-target
+	# make article-info2-target (needed to update db with additional metadata)
 
 download-index: dl-de dl-it dl-fr dl-1999bar-de dl-1999bar-fr dl-1999bar-it
 
@@ -133,7 +134,7 @@ $(DATA_DIR)/%.pdf.info.txt: $(DATA_DIR)/%.pdf
 
 pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
-### Create new database file with page count
+### Create new database file with with extended metadata
 article-info2-%.tsv: article-info-%.tsv %.pages.tsv
 	python3 lib/extend_metadata.py -i $< -o $@
 
