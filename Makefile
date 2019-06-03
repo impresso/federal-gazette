@@ -130,7 +130,7 @@ $(DATA_DIR)/%.pdf.info.txt: $(DATA_DIR)/%.pdf
 
 
 %.pages.tsv: %-pdf-info-target
-	find data_pdf/$*  -name '*info.txt' -exec grep -H Pages {} \; | perl -lne 's/\.info\.txt:Pages:\s+/\t/;print;' > $@
+	find $(DATA_DIR)/$*  -name '*info.txt' -exec grep -H Pages {} \; | perl -lne 's/\.info\.txt:Pages:\s+/\t/;print;' > $@
 
 pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
@@ -147,13 +147,13 @@ article-info2-target: $(article-info2-files)
 
 ### Create canonical tif files from pdf
 canonical-files-%.tif: article-info2-%.tsv
-	python3 lib/pdf2tif.py -i $< -o $@
+	python3 lib/pdf2tif.py -i $<
 
-canonical-files-tif+= canonical-files-tif-de.tif
-canonical-files-tif+= canonical-files-tif-fr.tif
-canonical-files-tif+= canonical-files-tif-it.tif
+canonical-tif-files+= canonical-tif-files-de.tif
+canonical-tif-files+= canonical-tif-files-fr.tif
+canonical-tif-files+= canonical-tif-files-it.tif
 
-canonical-files-tif-target: $(canonical-files-tif)
+canonical-tif-files-target: $(canonical-tif-files)
 
 
 
