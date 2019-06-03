@@ -12,6 +12,7 @@ DATA_DIR?= data_pdf
 help:
 	# make download-index
 	# make article-info-target
+	# make article-info2-target (needed to update db with additional metadata)
 
 download-index: dl-de dl-it dl-fr dl-1999bar-de dl-1999bar-fr dl-1999bar-it
 
@@ -133,15 +134,27 @@ $(DATA_DIR)/%.pdf.info.txt: $(DATA_DIR)/%.pdf
 
 pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
-### Create new database file with page count
+### Create new database file with with extended metadata
+DATA_TIF_DIR?=data_tif
 article-info2-%.tsv: article-info-%.tsv %.pages.tsv
-	python3 lib/extend_metadata.py -i $< -o $@
+	python3 lib/extend_metadata.py -i $< -o $@ --dir_tif $(DATA_TIF_DIR)
 
 article-info2-files+= article-info2-de.tsv
 article-info2-files+= article-info2-fr.tsv
 article-info2-files+= article-info2-it.tsv
 
 article-info2-target: $(article-info2-files)
+
+### Create canonical tif files from pdf
+canonical-files-%.tif: article-info2-%.tsv
+	python3 lib/pdf2tif.py -i $< -o $@
+
+canonical-files-tif+= canonical-files-tif-de.tif
+canonical-files-tif+= canonical-files-tif-fr.tif
+canonical-files-tif+= canonical-files-tif-it.tif
+
+canonical-files-tif-target: $(canonical-files-tif)
+
 
 
 include lib/fg-txt-by-year.mk
