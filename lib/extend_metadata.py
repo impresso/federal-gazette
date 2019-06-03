@@ -54,7 +54,8 @@ def set_page_count(df, lang):
 
     # derive file path
     df["pdf_path"] = (
-        "data_pdf/"
+        df.pdf_path.map(lambda x: x.split("/")[0])
+        + "/"
         + lang
         + "/"
         + df["issue_date"].map(lambda x: str(x.year))
@@ -224,10 +225,10 @@ def set_page_count_full(df):
 
 
 def set_impresso_numbering(df):
-    df["impresso_issue_page"] = df.groupby(["issue_date"])["page_count"].apply(
+    df["impresso_issue_page"] = df.groupby(["issue_date"])["page_count_full"].apply(
         lambda x: x.cumsum()
     )
-    df["impresso_issue_page"] = df["impresso_issue_page"] - df["page_count"] + 1
+    df["impresso_issue_page"] = df["impresso_issue_page"] - df["page_count_full"] + 1
 
     df["impresso_issue_page"] = df["impresso_issue_page"].astype("int")
 
@@ -239,7 +240,7 @@ def set_impresso_numbering(df):
     return df
 
 
-def set_tif_path(df, lang):
+def set_tif_path(df, lang, dir_tif):
     abbr = "FedGaz" + lang.capitalize()
     df["canonical_dir_tif"] = (
         dir_tif
