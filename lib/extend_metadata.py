@@ -36,6 +36,15 @@ def parse_args():
         help="output file",
     )
 
+    parser.add_argument(
+        "-t",
+        "--dir_tif",
+        required=True,
+        action="store",
+        dest="dir_tif",
+        help="destination directorty for canonical tif files",
+    )
+
     return parser.parse_args()
 
 
@@ -233,7 +242,8 @@ def set_impresso_numbering(df):
 def set_tif_path(df, lang):
     abbr = "FedGaz" + lang.capitalize()
     df["canonical_dir_tif"] = (
-        "data_tif/"
+        dir_tif
+        + "/"
         + abbr
         + "/"
         + df[["year", "month", "day"]].astype(str).apply(lambda x: "/".join(x), axis=1)
@@ -259,6 +269,7 @@ def main():
     args = parse_args()
     f_in = args.f_in
     f_out = args.f_out
+    dir_tif = args.dir_tif
 
     df = pd.read_csv(f_in, sep="\t", parse_dates=["issue_date"])
     lang = f_in.split(".")[0].split("-")[-1]  # parse language id
@@ -279,7 +290,7 @@ def main():
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
     df = set_impresso_numbering(df)
-    df = set_tif_path(df, lang)
+    df = set_tif_path(df, lang, dir_tif)
 
     df.to_csv(f_out, sep="\t", index=False)
 
