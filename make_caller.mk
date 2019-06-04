@@ -10,16 +10,14 @@ YEARS_END?= 2017
 
 YEARS:=$(shell seq $(YEARS_START) 20 $(YEARS_END))
 
-de-single-doc-files:=$(patsubst %, $(DIR_OUT)/de_%_all.txt, $(YEARS))
-fr-single-doc-files:=$(patsubst %, $(DIR_OUT)/fr_%_all.txt, $(YEARS))
-de-translated-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
+de-fr-trans-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
 de-fr-alignments-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_alignments.xml, $(YEARS))
 de-fr-aligned-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_aligned_docs.tsv, $(YEARS))
 de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.txt, $(YEARS))
 
 de-fr-translated-dummy:=$(patsubst %, $(DIR_OUT)/de_fr_%_trans_dummy.txt, $(YEARS))
 
-de-fr-alignments-targets: $(de-single-doc-files) $(fr-single-doc-files) $(de-translated-doc-files) $(de-fr-alignments-doc-files) $(DIR_OUT)/overview_stats_alignment.csv $(de-fr-parallel-corpus-files) $(de-fr-aligned-doc-files)
+de-fr-alignments-target: $(de-fr-trans-files) $(de-fr-alignments-doc-files) $(de-fr-parallel-corpus-files) $(de-fr-aligned-doc-files)
 
 print-%: ; @echo $* is $($*)
 
@@ -33,6 +31,15 @@ de_%_all.txt:
 # FR
 fr_%_all.txt:
 	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*) FILE_LANG=fr DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
+
+de-single-doc-files:=$(patsubst %, $(DIR_OUT)/de_%_all.txt, $(YEARS))
+fr-single-doc-files:=$(patsubst %, $(DIR_OUT)/fr_%_all.txt, $(YEARS))
+
+de-single-doc-target: $(de-single-doc-files)
+fr-single-doc-target: $(fr-single-doc-files)
+
+all-single-doc-target: de-single-doc-target fr-single-doc-target
+
 
 #### DOCUMENT ALIGMNENT ###
 
@@ -52,11 +59,13 @@ de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 	-t $(word 3, $^) -o $@ -c
 
 # collect all alignment stats and merge them into single csv
-overview_stats_alignment.csv: #$(de-fr-alignments-doc-files) TODO: make proper dependencies de_fr_%_alignments.xml
+de_fr_overview_stats_alignment.csv: #$(de-fr-alignments-doc-files) TODO: make proper dependencies de_fr_%_alignments.xml
 	head -n 1 $(DIR_OUT)/*.csv |  sed '2q;d' > csv_header.txt
 	awk 'FNR > 1' *.csv > total_stats_alignment.csv
 	cat csv_header.txt total_stats_alignment.csv > $@
 	rm csv_header.txt total_stats_alignment.csv
+
+all_overview_stats_alignment-target: $(DIR_OUT)/de_fr_overview_stats_alignment.csv
 
 
 #### SENTENCE ALIGMNENT ###
@@ -66,17 +75,32 @@ overview_stats_alignment.csv: #$(de-fr-alignments-doc-files) TODO: make proper d
 # Thirdly, rename all article according to its first line
 # Fourthly, remove first line in all files which contains the file name
 
+
 de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 	mkdir -p $(DIR_TRANS)/$*
 	sed '1d; $d' $< | csplit -z --digits=4 --quiet --suppress-matched --prefix=$(DIR_TRANS)/$*/trans_art /dev/stdin "/.EOA/" "{*}"
 	for i in "$(DIR_TRANS)/$*/"trans_art*; do mv -n "$$i" "$(DIR_TRANS)/$*/$$(basename $$(cat "$$i"|head -n1))"; done
 	sed -i '1d' "$(DIR_TRANS)/$*/"*.cuttered.sent.txt
-	rm -r "$(DIR_TRANS)/$*"
+
 
 # Create a tsv-file with all aligned articles (src, trg, translation)
 de_fr_%_aligned_docs.tsv: de_fr_%_alignments.xml de_fr_%_trans_dummy.txt
 	python lib/aligned2tsv.py -i $< -o $@ -t $(DIR_TRANS)/$(DIR_OUT)
 
-# Align sentences with bleu-champ
+# Align sentences with bleu-champ and set EOA-marker to indicate the article boundaries
+# After the alignment, clean up directory with translated files
 de_fr_%_parallel_corpus.txt: de_fr_%_aligned_docs.tsv
 	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@; done < $<
+	rm -r "$(DIR_TRANS)/$*"
+
+# Create parallel corpus
+$(DIR_OUT)/de_fr_all_parallel_corpus.txt: de_fr_%_parallel_corpus.txt
+	cat $< | tr '[:upper:]' '[:lower:]' | tr '[0-9]' '0' > $@
+
+$(DIR_OUT)/de_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
+	cut -f1 de_fr_all_parallel_lower.txt > de_sent_parallel.txt
+
+$(DIR_OUT)/fr_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
+	cut -f2 de_fr_all_parallel_lower.txt > fr_sent_parallel.txt
+
+all_sent_parallel-target: $(DIR_OUT)/de_sent_parallel.txt $(DIR_OUT)/fr_sent_parallel.txt
