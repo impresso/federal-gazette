@@ -10,27 +10,13 @@ YEARS_END?= 2017
 
 YEARS:=$(shell seq $(YEARS_START) 20 $(YEARS_END))
 
-de-fr-trans-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
-de-fr-alignments-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_alignments.xml, $(YEARS))
-de-fr-aligned-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_aligned_docs.tsv, $(YEARS))
-de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.txt, $(YEARS))
 
-de-fr-translated-dummy:=$(patsubst %, $(DIR_OUT)/de_fr_%_trans_dummy.txt, $(YEARS))
 
-de-fr-alignments-target: $(de-fr-trans-files) $(de-fr-alignments-doc-files) $(de-fr-parallel-corpus-files) $(de-fr-aligned-doc-files)
-
+# debug print content of variable
 print-%: ; @echo $* is $($*)
 
 #### TOKENIZING ###
 # segment and tokenize extracted text data anually and language-wise
-
-# DE
-de_%_all.txt:
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*)  FILE_LANG=de DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
-
-# FR
-fr_%_all.txt:
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*) FILE_LANG=fr DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
 
 de-single-doc-files:=$(patsubst %, $(DIR_OUT)/de_%_all.txt, $(YEARS))
 fr-single-doc-files:=$(patsubst %, $(DIR_OUT)/fr_%_all.txt, $(YEARS))
@@ -40,8 +26,20 @@ fr-single-doc-target: $(fr-single-doc-files)
 
 all-single-doc-target: de-single-doc-target fr-single-doc-target
 
+de_%_all.txt:
+	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*)  FILE_LANG=de DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
+
+fr_%_all.txt:
+	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*) FILE_LANG=fr DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
+
+
+
 
 #### DOCUMENT ALIGMNENT ###
+
+de-fr-trans-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
+
+de-fr-trans-target: $(de-fr-trans-doc-files)
 
 # Translate all German docs to French with Moses
 # Remove square brackets as Moses cannot process them
@@ -54,19 +52,22 @@ de_fr_%_all.txt: de_%_all.txt
 	> $@
 
 # Compute BLEU-alignments for German and French documents
+de-fr-alignments-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_alignments.xml, $(YEARS))
+
+de-fr-alignments-doc-target: $(de-fr-alignments-doc-files)
+
 de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 	python3 lib/bleualign_articles.py -src $(word 1, $^) -trg $(word 2, $^) \
 	-t $(word 3, $^) -o $@ -c
 
-# collect all alignment stats and merge them into single csv
-de_fr_overview_stats_alignment.csv: #$(de-fr-alignments-doc-files) TODO: make proper dependencies de_fr_%_alignments.xml
+# Collect the alignment stats per language pair and merge them into single csv
+all_overview_stats_alignment-target: $(DIR_OUT)/de_fr_overview_stats_alignment.csv
+
+de_fr_overview_stats_alignment.csv: $(de-fr-alignments-doc-files)
 	head -n 1 $(DIR_OUT)/*.csv |  sed '2q;d' > csv_header.txt
 	awk 'FNR > 1' *.csv > total_stats_alignment.csv
 	cat csv_header.txt total_stats_alignment.csv > $@
 	rm csv_header.txt total_stats_alignment.csv
-
-all_overview_stats_alignment-target: $(DIR_OUT)/de_fr_overview_stats_alignment.csv
-
 
 #### SENTENCE ALIGMNENT ###
 
@@ -75,6 +76,7 @@ all_overview_stats_alignment-target: $(DIR_OUT)/de_fr_overview_stats_alignment.c
 # Thirdly, rename all article according to its first line
 # Fourthly, remove first line in all files which contains the file name
 
+de-fr-translated-dummy:=$(patsubst %, $(DIR_OUT)/de_fr_%_trans_dummy.txt, $(YEARS))
 
 de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 	mkdir -p $(DIR_TRANS)/$*
@@ -84,8 +86,13 @@ de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 
 
 # Create a tsv-file with all aligned articles (src, trg, translation)
+de-fr-aligned-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_aligned_docs.tsv, $(YEARS))
+
+de-fr-aligned-doc-target: $(de-fr-aligned-doc-files)
+
 de_fr_%_aligned_docs.tsv: de_fr_%_alignments.xml de_fr_%_trans_dummy.txt
 	python lib/aligned2tsv.py -i $< -o $@ -t $(DIR_TRANS)/$(DIR_OUT)
+
 
 # Align sentences with bleu-champ and set EOA-marker to indicate the article boundaries
 # After the alignment, clean up directory with translated files
@@ -93,14 +100,21 @@ de_fr_%_parallel_corpus.txt: de_fr_%_aligned_docs.tsv
 	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo 'EOA' >> $@; done < $<
 	rm -r "$(DIR_TRANS)/$*"
 
+
 # Create parallel corpus
+de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.txt, $(YEARS))
+
+de-fr-parallel-corpus-target: $(de-fr-parallel-corpus-files)
+
 $(DIR_OUT)/de_fr_all_parallel_corpus.txt: de_fr_%_parallel_corpus.txt
 	cat $< | tr '[:upper:]' '[:lower:]' | tr '[0-9]' '0' > $@
+
+
+
+all_sent_parallel-target: $(DIR_OUT)/de_sent_parallel.txt $(DIR_OUT)/fr_sent_parallel.txt
 
 $(DIR_OUT)/de_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
 	cut -f1 de_fr_all_parallel_lower.txt > de_sent_parallel.txt
 
 $(DIR_OUT)/fr_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
 	cut -f2 de_fr_all_parallel_lower.txt > fr_sent_parallel.txt
-
-all_sent_parallel-target: $(DIR_OUT)/de_sent_parallel.txt $(DIR_OUT)/fr_sent_parallel.txt
