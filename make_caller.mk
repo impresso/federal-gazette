@@ -90,7 +90,7 @@ de_fr_%_aligned_docs.tsv: de_fr_%_alignments.xml de_fr_%_trans_dummy.txt
 # Align sentences with bleu-champ and set EOA-marker to indicate the article boundaries
 # After the alignment, clean up directory with translated files
 de_fr_%_parallel_corpus.txt: de_fr_%_aligned_docs.tsv
-	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@; done < $<
+	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo 'EOA' >> $@; done < $<
 	rm -r "$(DIR_TRANS)/$*"
 
 # Create parallel corpus
