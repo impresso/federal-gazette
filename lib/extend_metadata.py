@@ -3,7 +3,8 @@
 
 
 """
-Extend tsv-file with more metadata (file to pdf, number of pdf pages)
+Extend tsv-file with more metadata (path to pdf, number of pdf pages)
+Sorry, for the awful code which seems necessary to cover various cases
 """
 
 __author__ = "Alex Flückiger"
@@ -37,24 +38,32 @@ def parse_args():
     )
 
     parser.add_argument(
+        "-p",
+        "--dir_pdf",
+        required=True,
+        action="store",
+        dest="dir_pdf",
+        help="source directory for pdf",
+    )
+    parser.add_argument(
         "-t",
         "--dir_tif",
         required=True,
         action="store",
         dest="dir_tif",
-        help="destination directorty for canonical tif files",
+        help="destination directory for canonical tif files",
     )
 
     return parser.parse_args()
 
 
-def set_page_count(df, lang):
+def set_page_count(df, lang, dir_pdf):
     df_pages = pd.read_csv(lang + ".pages.tsv", sep="\t", header=None)
     df_pages = df_pages.rename(columns={0: "pdf_path", 1: "page_count"})
 
     # derive file path
     df["pdf_path"] = (
-        df.pdf_path.map(lambda x: x.split("/")[0])
+        dir_pdf
         + "/"
         + lang
         + "/"
@@ -81,8 +90,9 @@ def set_continious_page_numbering(df, print_log=False):
     df["log"] = ""
     df["article_page_last"] = np.nan
 
+    titles = ["inserate", "beilage"]
+
     for year in df.year.unique():
-        year_issues = df.loc[df.year == year, "issue_number"].unique()
 
         counter = Counter()
 
@@ -94,8 +104,6 @@ def set_continious_page_numbering(df, print_log=False):
                     (df.year == year) & (df.volume_number == volume)
                 ].iterrows()
             ]
-
-            titles = ["inserate", "beilage"]
 
             for art in year_vol_arts:
                 art_start = df.loc[art, "article_page_first"]
@@ -268,12 +276,9 @@ def set_tif_path(df, lang, dir_tif):
 def main():
 
     args = parse_args()
-    f_in = args.f_in
-    f_out = args.f_out
-    dir_tif = args.dir_tif
 
-    df = pd.read_csv(f_in, sep="\t", parse_dates=["issue_date"])
-    lang = f_in.split(".")[0].split("-")[-1]  # parse language id
+    df = pd.read_csv(args.f_in, sep="\t", parse_dates=["issue_date"])
+    lang = args.f_in.split(".")[0].split("-")[-1]  # parse language id
 
     df.sort_values(
         by=["issue_date", "article_page_first", "article_docid"], inplace=True
@@ -287,13 +292,13 @@ def main():
 
     df["edition"] = "a"
 
-    df = set_page_count(df, lang)
+    df = set_page_count(df, lang, args.dir_pdf)
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
     df = set_impresso_numbering(df)
-    df = set_tif_path(df, lang, dir_tif)
+    df = set_tif_path(df, lang, args.dir_tif)
 
-    df.to_csv(f_out, sep="\t", index=False)
+    df.to_csv(args.f_out, sep="\t", index=False)
 
 
 ################################################################################

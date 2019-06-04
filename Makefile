@@ -114,7 +114,6 @@ $(DATA_TEXT_DIR)/%.text:$(DATA_DIR)/%.pdf
 
 
 ### PDF info files
-
 de-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(de-pdf-files:.pdf=.pdf.info.txt))
 fr-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(fr-pdf-files:.pdf=.pdf.info.txt))
 it-pdf-info-files:=$(subst $(DATA_DIR),$(DATA_DIR),$(it-pdf-files:.pdf=.pdf.info.txt))
@@ -129,15 +128,14 @@ $(DATA_DIR)/%.pdf.info.txt: $(DATA_DIR)/%.pdf
 	pdfinfo $< > $@
 
 
+pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
+
 %.pages.tsv: %-pdf-info-target
 	find $(DATA_DIR)/$*  -name '*info.txt' -exec grep -H Pages {} \; | perl -lne 's/\.info\.txt:Pages:\s+/\t/;print;' > $@
 
-pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
 ### Create new database file with with extended metadata
 DATA_TIF_DIR?=data_tif
-article-info2-%.tsv: article-info-%.tsv %.pages.tsv
-	python3 lib/extend_metadata.py -i $< -o $@ --dir_tif $(DATA_TIF_DIR)
 
 article-info2-files+= article-info2-de.tsv
 article-info2-files+= article-info2-fr.tsv
@@ -145,17 +143,20 @@ article-info2-files+= article-info2-it.tsv
 
 article-info2-target: $(article-info2-files)
 
-### Create canonical tif files from pdf
-canonical-files-%.tif: article-info2-%.tsv
-	python3 lib/pdf2tif.py -i $<
+article-info2-%.tsv: article-info-%.tsv %.pages.tsv
+	python3 lib/extend_metadata.py -i $< -o $@ --dir_pdf $(DATA_DIR) --dir_tif $(DATA_TIF_DIR)
 
+
+
+### Create canonical tif files from pdf
 canonical-tif-files+= canonical-tif-files-de.tif
 canonical-tif-files+= canonical-tif-files-fr.tif
 canonical-tif-files+= canonical-tif-files-it.tif
 
 canonical-tif-files-target: $(canonical-tif-files)
 
-
+canonical-tif-files-%.tif: article-info2-%.tsv
+	python3 lib/pdf2tif.py -i $<
 
 include lib/fg-txt-by-year.mk
 
