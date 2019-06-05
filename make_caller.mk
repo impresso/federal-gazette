@@ -46,8 +46,9 @@ de-fr-trans-target: $(de-fr-trans-doc-files)
 de_fr_%_all.txt: de_%_all.txt
 	cat $< | \
 	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/lowercase.perl | \
-	sed -r "s/\[//g" | sed -r "s/\]//g" | \
+	perl /mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/escape-special-chars.perl | \
 	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -v 0 -threads 5 | \
+	perl /mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/deescape-special-chars.perl | \
 	sed -r "s/^\.eoa/.EOA/" \
 	> $@
 
