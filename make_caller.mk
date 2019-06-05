@@ -96,25 +96,38 @@ de_fr_%_aligned_docs.tsv: de_fr_%_alignments.xml de_fr_%_trans_dummy.txt
 
 # Align sentences with bleu-champ and set EOA-marker to indicate the article boundaries
 # After the alignment, clean up directory with translated files
-de_fr_%_parallel_corpus.txt: de_fr_%_aligned_docs.tsv
-	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo 'EOA' >> $@; done < $<
-	rm -r "$(DIR_TRANS)/$*"
-
-
-# Create parallel corpus
-de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.txt, $(YEARS))
+de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.tsv, $(YEARS))
 
 de-fr-parallel-corpus-target: $(de-fr-parallel-corpus-files)
 
-$(DIR_OUT)/de_fr_all_parallel_corpus.txt: de_fr_%_parallel_corpus.txt
-	cat $< | tr '[:upper:]' '[:lower:]' | tr '[0-9]' '0' > $@
+de_fr_%_parallel_corpus.tsv: de_fr_%_aligned_docs.tsv
+	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo '.EOA' >> $@; done < $<
+	rm -r "$(DIR_TRANS)/$*"
 
 
+# Create a parallel corpus across years as tsv file
+$(DIR_OUT)/de_fr_all_parallel_corpus.tsv: $(de-fr-parallel-corpus-files)
+	cat $^ | tr '[:upper:]' '[:lower:]' | tr '[0-9]' '0' > $@
 
-all_sent_parallel-target: $(DIR_OUT)/de_sent_parallel.txt $(DIR_OUT)/fr_sent_parallel.txt
 
-$(DIR_OUT)/de_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
-	cut -f1 de_fr_all_parallel_lower.txt > de_sent_parallel.txt
+# Split the parallel corpus into separate files per language
+all_sent_parallel-target: $(DIR_OUT)/de_fr_sent_parallel_de.txt $(DIR_OUT)/de_fr_sent_parallel_fr.txt
 
-$(DIR_OUT)/fr_sent_parallel.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.txt
-	cut -f2 de_fr_all_parallel_lower.txt > fr_sent_parallel.txt
+$(DIR_OUT)/de_fr_sent_parallel_de.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.tsv
+	cut -f1 $< > $@
+
+$(DIR_OUT)/de_fr_sent_parallel_fr.txt: $(DIR_OUT)/de_fr_all_parallel_corpus.tsv
+	cut -f2 $< > $@
+
+
+# Train multilingual embeddings
+DIR_EMBED?= embedding
+$(DIR_EMBED)/biskip.de-fr.bin: $(DIR_OUT)/de_fr_sent_parallel_de.txt $(DIR_OUT)/de_fr_sent_parallel_fr.txt
+	mkdir -p $(@D) && \
+	multivec-bi --train-src $(word 1, $^) --train-trg $(word 2, $^) --dimension 100 --min-count 10 --window-size 5 --threads 10 --iter 10 --sg --save $@
+
+$(DIR_EMBED)/biskip.de-fr.de.bin: $(DIR_EMBED)/biskip.de-fr.bin
+	multivec-bi --load $< --save-src $@
+
+$(DIR_EMBED)/biskip.de-fr.fr.bin: $(DIR_EMBED)/biskip.de-fr.bin
+	multivec-bi --load $< --save-trg $@
