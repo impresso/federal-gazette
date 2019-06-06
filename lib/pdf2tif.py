@@ -52,8 +52,8 @@ def extract_tif_via_bash(f_in):
 
     df = pd.read_csv(f_in, sep="\t", parse_dates=["issue_date"])
 
-    # remove potential data
-    trg_dir = df.loc[0, "canonical_dir_tif"].split("/")[0]
+    # remove potential existing data
+    trg_dir = "/".join(df.loc[0, "canonical_dir_tif"].split("/")[:2])
     os.system("rm -rf " + trg_dir)
 
     for i, row in df.iterrows():
