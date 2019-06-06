@@ -2,7 +2,7 @@ SHELL:=/bin/bash
 
 
 DIR_IN?= data_text
-DIR_OUT?= data_alignment
+DIR_ALIGN?= data_alignment
 DIR_TRANS?= /dev/shm/impresso
 
 YEARS_START?= 1850
@@ -16,33 +16,40 @@ YEARS:=$(shell seq $(YEARS_START) 20 $(YEARS_END))
 print-%: ; @echo $* is $($*)
 
 #### TOKENIZING ###
-# segment and tokenize extracted text data anually and language-wise
+# segment and tokenize extracted text data anually and merge into single document
 
-de-single-doc-files:=$(patsubst %, $(DIR_OUT)/de_%_all.txt, $(YEARS))
-fr-single-doc-files:=$(patsubst %, $(DIR_OUT)/fr_%_all.txt, $(YEARS))
+de-single-doc-files:=$(patsubst %, $(DIR_ALIGN)/de_%_all.txt, $(YEARS))
+fr-single-doc-files:=$(patsubst %, $(DIR_ALIGN)/fr_%_all.txt, $(YEARS))
+it-single-doc-files:=$(patsubst %, $(DIR_ALIGN)/it_%_all.txt, $(YEARS))
 
 de-single-doc-target: $(de-single-doc-files)
 fr-single-doc-target: $(fr-single-doc-files)
+it-single-doc-target: $(it-single-doc-files)
 
-all-single-doc-target: de-single-doc-target fr-single-doc-target
+all-single-doc-target: de-single-doc-target fr-single-doc-target it-single-doc-target
 
 de_%_all.txt:
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*)  FILE_LANG=de DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
+	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_ALIGN)/,,$*)  FILE_LANG=de DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_ALIGN)
 
 fr_%_all.txt:
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_OUT)/,,$*) FILE_LANG=fr DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_OUT)
+	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_ALIGN)/,,$*) FILE_LANG=fr DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_ALIGN)
 
+it_%_all.txt:
+	$(MAKE) -f make-formats.mk YEAR=$(subst $(DIR_ALIGN)/,,$*) FILE_LANG=it DIR_IN=$(DIR_IN) DIR_OUT=$(DIR_ALIGN)
 
 
 
 #### DOCUMENT ALIGMNENT ###
 
-de-fr-trans-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_all.txt, $(YEARS))
+de-fr-trans-doc-files:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_all.txt, $(YEARS))
+de-it-trans-doc-files:=$(patsubst %, $(DIR_ALIGN)/de_it_%_all.txt, $(YEARS))
 
 de-fr-trans-target: $(de-fr-trans-doc-files)
+de-it-trans-target: $(de-it-trans-doc-files)
 
-# Translate all German docs to French with Moses
-# Remove square brackets as Moses cannot process them
+all-trans-target: de-fr-trans-target de-it-trans-target
+
+# Translate the German doc into French and Italian with Moses
 de_fr_%_all.txt: de_%_all.txt
 	cat $< | \
 	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/lowercase.perl | \
@@ -52,8 +59,11 @@ de_fr_%_all.txt: de_%_all.txt
 	sed -r "s/^\.eoa/.EOA/" \
 	> $@
 
+# TODO
+de_it_%_all.txt: de_%_all.txt
+
 # Compute BLEU-alignments for German and French documents
-de-fr-alignments-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_alignments.xml, $(YEARS))
+de-fr-alignments-doc-files:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_alignments.xml, $(YEARS))
 
 de-fr-alignments-doc-target: $(de-fr-alignments-doc-files)
 
@@ -62,13 +72,16 @@ de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 	-t $(word 3, $^) -o $@ -c
 
 # Collect the alignment stats per language pair and merge them into single csv
-all_overview_stats_alignment-target: $(DIR_OUT)/de_fr_overview_stats_alignment.csv
 
-de_fr_overview_stats_alignment.csv: $(de-fr-alignments-doc-files)
-	head -n 1 $(DIR_OUT)/*.csv |  sed '2q;d' > csv_header.txt
-	awk 'FNR > 1' *.csv > total_stats_alignment.csv
-	cat csv_header.txt total_stats_alignment.csv > $@
-	rm csv_header.txt total_stats_alignment.csv
+de-fr-alignments-stats-files:=$(de-fr-alignments-doc-files:.xml=_stats.csv)
+
+de-fr-alignments-stats-target: $(de-fr-alignments-stats-files)
+
+de_fr_overview_stats_alignment.csv: $(de-fr-alignments-stats-files)
+	head -1 $< > $<.header.temp
+	awk 'FNR > 1' $^ > $@.temp
+	cat $<.header.temp $@.temp > $@
+	rm $<.header.temp $@.temp
 
 #### SENTENCE ALIGMNENT ###
 
@@ -77,7 +90,7 @@ de_fr_overview_stats_alignment.csv: $(de-fr-alignments-doc-files)
 # Thirdly, rename all article according to its first line
 # Fourthly, remove first line in all files which contains the file name
 
-de-fr-translated-dummy:=$(patsubst %, $(DIR_OUT)/de_fr_%_trans_dummy.txt, $(YEARS))
+de-fr-translated-dummy:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_trans_dummy.txt, $(YEARS))
 
 de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 	mkdir -p $(DIR_TRANS)/$*
@@ -87,17 +100,17 @@ de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 
 
 # Create a tsv-file with all aligned articles (src, trg, translation)
-de-fr-aligned-doc-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_aligned_docs.tsv, $(YEARS))
+de-fr-aligned-doc-files:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_aligned_docs.tsv, $(YEARS))
 
 de-fr-aligned-doc-target: $(de-fr-aligned-doc-files)
 
 de_fr_%_aligned_docs.tsv: de_fr_%_alignments.xml de_fr_%_trans_dummy.txt
-	python lib/aligned2tsv.py -i $< -o $@ -t $(DIR_TRANS)/$(DIR_OUT)
+	python lib/aligned2tsv.py -i $< -o $@ -t $(DIR_TRANS)/$(DIR_ALIGN)
 
 
 # Align sentences with bleu-champ and set EOA-marker to indicate the article boundaries
 # After the alignment, clean up directory with translated files
-de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_OUT)/de_fr_%_parallel_corpus.tsv, $(YEARS))
+de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_parallel_corpus.tsv, $(YEARS))
 
 de-fr-parallel-corpus-target: $(de-fr-parallel-corpus-files)
 
@@ -107,17 +120,17 @@ de_fr_%_parallel_corpus.tsv: de_fr_%_aligned_docs.tsv
 
 
 # Create a parallel corpus across years as tsv file
-$(DIR_OUT)/de_fr_all_parallel_corpus.tsv: $(de-fr-parallel-corpus-files)
+$(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv: $(de-fr-parallel-corpus-files)
 	cat > $@
 
 
 # Split the parallel corpus into separate files per language
-all_sent_parallel-target: $(DIR_OUT)/de_fr_sent_parallel_de.txt $(DIR_OUT)/de_fr_sent_parallel_fr.txt
+all_sent_parallel-target: $(DIR_ALIGN)/de_fr_sent_parallel_de.txt $(DIR_ALIGN)/de_fr_sent_parallel_fr.txt
 
-$(DIR_OUT)/de_fr_sent_parallel.de: $(DIR_OUT)/de_fr_all_parallel_corpus.tsv
+$(DIR_ALIGN)/de_fr_sent_parallel.de: $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv
 	cut -f1 $< > $@
 
-$(DIR_OUT)/de_fr_sent_parallel.fr: $(DIR_OUT)/de_fr_all_parallel_corpus.tsv
+$(DIR_ALIGN)/de_fr_sent_parallel.fr: $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv
 	cut -f2 $< > $@
 
 
@@ -128,7 +141,7 @@ DIR_EMBED_DATA?= embedding/data
 all_sent_parallel-target: $(DIR_EMBED)/vectors.de-fr.de.txt $(DIR_EMBED)/vectors.de-fr.fr.txt
 
 # Prepare data
-$(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de: $(DIR_OUT)/de_fr_sent_parallel.de $(DIR_OUT)/de_fr_sent_parallel.fr
+$(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de: $(DIR_ALIGN)/de_fr_sent_parallel.de $(DIR_ALIGN)/de_fr_sent_parallel.fr
 	python2 lib/multivec_scripts/prepare-data.py $(<:.de=) $(@:.de=) de fr \
 	--lowercase --normalize-digits --normalize-punk --min-count 0 --shuffle --script lib/multivec_scripts --threads 4 --verbose
 $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de
