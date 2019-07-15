@@ -59,7 +59,7 @@ de_fr_%_all.txt: de_%_all.txt
 	sed -r "s/^\.eoa/.EOA/" \
 	> $@
 
-# TODO
+# TODO: translate documents from German to Italian
 de_it_%_all.txt: de_%_all.txt
 
 # Compute BLEU-alignments for German and French documents
@@ -138,12 +138,12 @@ $(DIR_ALIGN)/de_fr_sent_parallel.fr: $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv
 DIR_EMBED?= embedding
 DIR_EMBED_DATA?= embedding/data
 
-all_sent_parallel-target: $(DIR_EMBED)/vectors.de-fr.de.txt $(DIR_EMBED)/vectors.de-fr.fr.txt
+all_sent_parallel-target: $(DIR_EMBED)/vectors.de-fr.de.vec $(DIR_EMBED)/vectors.de-fr.fr.vec
 
 # Prepare data
 $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de: $(DIR_ALIGN)/de_fr_sent_parallel.de $(DIR_ALIGN)/de_fr_sent_parallel.fr
 	python2 lib/multivec_scripts/prepare-data.py $(<:.de=) $(@:.de=) de fr \
-	--lowercase --normalize-digits --normalize-punk --min-count 0 --shuffle --script lib/multivec_scripts --threads 4 --verbose
+	--lowercase --normalize-digits --normalize-punk --min-count 10 --shuffle --script lib/multivec_scripts --threads 4 --verbose
 $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de
 
 # Train multivec models
@@ -157,8 +157,8 @@ $(DIR_EMBED)/biskip.de-fr.de.bin: $(DIR_EMBED)/biskip.de-fr.bin
 $(DIR_EMBED)/biskip.de-fr.fr.bin: $(DIR_EMBED)/biskip.de-fr.bin
 	multivec-bi --load $< --save-trg $@
 
-$(DIR_EMBED)/vectors.de-fr.de.txt: $(DIR_EMBED)/biskip.de-fr.de.bin
+$(DIR_EMBED)/vectors.de-fr.de.vec: $(DIR_EMBED)/biskip.de-fr.de.bin
 	multivec-mono --load $< --save-vectors $@
 
-$(DIR_EMBED)/vectors.de-fr.fr.txt: $(DIR_EMBED)/biskip.de-fr.fr.bin
+$(DIR_EMBED)/vectors.de-fr.fr.vec: $(DIR_EMBED)/biskip.de-fr.fr.bin
 	multivec-mono --load $< --save-vectors $@
