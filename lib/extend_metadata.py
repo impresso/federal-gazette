@@ -13,11 +13,10 @@ __organisation__ = "Institute of Computational Linguistics, University of Zurich
 __copyright__ = "UZH, 2019"
 __status__ = "development"
 
-
+from collections import Counter
 import argparse
 import pandas as pd
 import numpy as np
-from collections import Counter
 
 
 def parse_args():
@@ -215,7 +214,7 @@ def set_continious_page_numbering(df, print_log=False):
 
 def set_page_count_full(df):
     """
-    Maybe less than page_count since only entirely used pages are counted.
+    The number may be less than page_count since only entirely used pages are counted.
     The remainder is assigned to the subsequent article
     """
     # set default value
@@ -298,7 +297,11 @@ def main():
     df = set_impresso_numbering(df)
     df = set_tif_path(df, lang, args.dir_tif)
 
-    df.to_csv(args.f_out, sep="\t", index=False)
+    # deduplication on unique article id
+    df["is_duplicate"] = df["article_docid"].duplicated()
+    df_unique = df[df["is_duplicate"] == False]
+
+    df_unique.to_csv(args.f_out, sep="\t", index=False)
 
 
 ################################################################################
