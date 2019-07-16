@@ -1,3 +1,8 @@
+SHELL:=/bin/bash
+
+# ensure that entire pipe command fails if a part fails
+export SHELLOPTS:=errexit:pipefail
+
 DIR_IN?= data_text
 DIR_OUT?= data_alignment
 FILE_OUT?= $(DIR_OUT)/$(FILE_LANG)_$(YEAR)_all.txt
