@@ -1,5 +1,8 @@
 SHELL:=/bin/bash
 
+# ensure that entire pipe command fails if a part fails
+export SHELLOPTS:=errexit:pipefail
+
 
 DIR_IN?= data_text
 DIR_ALIGN?= data_alignment
