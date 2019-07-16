@@ -282,6 +282,10 @@ def main():
     df.sort_values(
         by=["issue_date", "article_page_first", "article_docid"], inplace=True
     )
+    # deduplication on unique article id
+    df["is_duplicate"] = df["article_docid"].duplicated()
+    df = df.loc[df["is_duplicate"] == False]
+
     df = df.reset_index(drop=True)
 
     # parse date
@@ -291,17 +295,16 @@ def main():
 
     df["edition"] = "a"
 
+    # set attribute whether pdf is a scan with OCR or a fully digital copy
+    df["ocr"] = np.where(df["issue_date"] <= "1999-06-15", True, False)
+
     df = set_page_count(df, lang, args.dir_pdf)
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
     df = set_impresso_numbering(df)
     df = set_tif_path(df, lang, args.dir_tif)
 
-    # deduplication on unique article id
-    df["is_duplicate"] = df["article_docid"].duplicated()
-    df_unique = df[df["is_duplicate"] == False]
-
-    df_unique.to_csv(args.f_out, sep="\t", index=False)
+    df.to_csv(args.f_out, sep="\t", index=False)
 
 
 ################################################################################
