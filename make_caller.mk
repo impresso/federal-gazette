@@ -11,7 +11,7 @@ DIR_TRANS?= /dev/shm/impresso
 YEARS_START?= 1850
 YEARS_END?= 2017
 
-YEARS:=$(shell seq $(YEARS_START) 20 $(YEARS_END))
+YEARS:=$(shell seq $(YEARS_START) 1 $(YEARS_END))
 
 
 
@@ -57,10 +57,11 @@ de_fr_%_all.txt: de_%_all.txt
 	cat $< | \
 	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/lowercase.perl | \
 	perl /mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/escape-special-chars.perl | \
-	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -v 0 -threads 5 | \
+	moses -f mt_moses/train_de_fr/binarised_model/moses.ini -v 0 -threads 4 | \
 	perl /mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/tokenizer/deescape-special-chars.perl | \
 	sed -r "s/^\.eoa/.EOA/" \
-	> $@
+	> $@  \
+	|| echo 'Error during Moses translation process for the following year: ' $@ >> log_moses.txt
 
 # TODO: translate documents from German to Italian
 de_it_%_all.txt: de_%_all.txt
