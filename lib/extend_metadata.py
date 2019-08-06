@@ -214,19 +214,19 @@ def set_continious_page_numbering(df, print_log=False):
 
 def set_page_count_full(df):
     """
-    The number may be less than page_count since only entirely used pages are counted.
-    The remainder is assigned to the subsequent article
+    The number may be one less than page_count since only pages
+    which belong exclusively to an article are counted.
+    The potential remainder is assigned to the subsequent article.
     """
-    # set default value
-    df["page_count_full"] = df["page_count"]
 
-    for i, row in df.iterrows():
-        try:
-            if df.loc[i, "article_page_last"] == df.loc[i + 1, "article_page_first"]:
-                df.loc[i, "page_count_full"] -= 1
-        except KeyError:
-            # there is no subsequent article for the final article
-            continue
+    df["article_page_first_next"] = df["article_page_first"].shift(-1)
+    df["issue_date_next"] = df["issue_date"].shift(-1)
+    df["page_count_full"] = np.where(
+        (df.article_page_last == df.article_page_first_next)
+        & (df.issue_date == df.issue_date_next),
+        df.page_count - 1,
+        df.page_count,
+    )
 
     return df
 
