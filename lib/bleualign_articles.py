@@ -596,7 +596,7 @@ def main():
     comparable_alignments = []
     stats_alignments = {}
 
-    batch_size = 750
+    batch_size = 500
 
     for start in range(0, len(src_articles), batch_size):
         end = start + batch_size
