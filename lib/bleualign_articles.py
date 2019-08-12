@@ -581,12 +581,8 @@ def main():
 
     print("\n------------------------------------------------------------------")
     print("------------------------------------------------------------------")
-    print(
-        "\t\tStarting alignment process of {0:d} articles of '{}'".format(
-            len(src_articles)
-        ),
-        src,
-    )
+    print(args.src)
+    print("\t\tStarting alignment process of {0:d} articles".format(len(src_articles)))
     print("------------------------------------------------------------------")
     print("------------------------------------------------------------------")
 
