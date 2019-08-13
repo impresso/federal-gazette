@@ -31,7 +31,6 @@ __author__ = "Chantal Amrhein <chantal.amrhein@uzh.ch>"
 # imported modules
 from score import *
 import argparse
-import codecs
 import random
 import re
 from collections import defaultdict
@@ -107,7 +106,7 @@ def parse_args():
 def read_file(filename):
     """reads a given file into a string"""
 
-    with codecs.open(filename, "r", "utf-8") as infile:
+    with open(filename, mode="r", encoding="utf-8") as infile:
         return infile.read()
 
 
@@ -120,7 +119,7 @@ def split_articles(text, string):
     return [
         article
         for article in text.split(string)
-        if article != u"\n" and article != u" \n"
+        if article != "\n" and article != " \n"
     ]
 
 
@@ -157,15 +156,22 @@ def write_alignments_to_xml(alignments, outfile):
     root = etree.Element("TEI")
     xml = etree.ElementTree(root)
 
+    if not alignments:
+        xml.write(outfile, xml_declaration=True, encoding="utf-8", pretty_print=True)
+        return None
+
     # create basic xml structure for new book
     header = etree.SubElement(root, "teiHeader")
-    header.text = alignments[0]["src"][:14]  # extract path to language folder
+    try:
+        header.text = alignments[0]["src"][:14]  # extract path to language folder
+    except IndexError:
+        header.text = "LANGUAGEFOLDER"
 
     linkGrp = etree.SubElement(root, "linkGrp")
     try:
         src_lang = re.search("[_./](..)[_./]", alignments[0]["src"]).group(1)
         trg_lang = re.search("[_./](..)[_./]", alignments[0]["trg"]).group(1)
-    except AttributeError:
+    except (AttributeError, IndexError):
         src_lang = "X"
         trg_lang = "X"
     linkGrp.set("lang", src_lang + ";" + trg_lang)
@@ -570,9 +576,9 @@ def main():
     trans = read_file(args.t)
 
     # remove first and last line of file since there is no volume organization
-    src = src[src.find("\n") + 1 : src.rfind("\n")]
-    trg = trg[trg.find("\n") + 1 : trg.rfind("\n")]
-    trans = trans[trans.find("\n") + 1 : trans.rfind("\n")]
+    src = src[src.find("\n") + 1 : src.rfind(".eob")]
+    trg = trg[trg.find("\n") + 1 : trg.rfind(".eob")]
+    trans = trans[trans.find("\n") + 1 : trans.rfind(".eob")]
 
     # split the magazine into articles
     src_articles = split_articles(src, ".EOA")
@@ -581,8 +587,13 @@ def main():
 
     print("\n------------------------------------------------------------------")
     print("------------------------------------------------------------------")
-    print(args.src)
-    print("\t\tStarting alignment process of {0:d} articles".format(len(src_articles)))
+    print(
+        "\tStarting alignment process of {} articles from source:".format(
+            len(src_articles)
+        )
+    )
+    print("\t", args.src)
+
     print("------------------------------------------------------------------")
     print("------------------------------------------------------------------")
 
@@ -605,11 +616,12 @@ def main():
             src_articles[start:end], trg_articles, trans_articles[start:end]
         )
 
+        # sum up values across batches
         definitive_alignments += definitive_alignments_temp
         comparable_alignments += comparable_alignments_temp
         stats_alignments = {
             k: stats_alignments.get(k, 0) + stats_alignments_temp.get(k, 0)
-            for k in set(stats_alignments) & set(stats_alignments_temp)
+            for k in set(stats_alignments_temp)
         }
 
     # add additional information to statistics
@@ -634,9 +646,8 @@ def main():
         write_alignments_to_xml(definitive_alignments, args.output)
     else:
         write_alignments_to_xml(definitive_alignments, args.output)
-        write_alignments_to_xml(
-            comparable_alignments, args.output[:-4] + "_comparable.xml"
-        )
+        fname = args.output.replace(".xml", "_comparable.xml")
+        write_alignments_to_xml(comparable_alignments, fname)
 
 
 ################################################################################
