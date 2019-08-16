@@ -79,9 +79,9 @@ de_fr_%_alignments.xml: de_%_all.txt fr_%_all.txt de_fr_%_all.txt
 
 de-fr-alignments-stats-files:=$(de-fr-alignments-doc-files:.xml=_stats.csv)
 
-de-fr-alignments-stats-target: $(de-fr-alignments-stats-files)
+de-fr-alignments-stats-target: $(de-fr-alignments-stats-files) de_fr_overview_stats_alignment.csv
 
-de_fr_overview_stats_alignment.csv: $(de-fr-alignments-stats-files)
+$(DIR_ALIGN)/de_fr_overview_stats_alignment.csv: $(de-fr-alignments-stats-files)
 	head -1 $< > $<.header.temp
 	awk 'FNR > 1' $^ > $@.temp
 	cat $<.header.temp $@.temp > $@
@@ -89,7 +89,7 @@ de_fr_overview_stats_alignment.csv: $(de-fr-alignments-stats-files)
 
 #### SENTENCE ALIGMNENT ###
 
-# Firstly, remove first and last line from the translation file.
+# Firstly, remove first and last line from the translation file (delimiter volume organization)
 # Secondly, split this file into its articles at .EOA delimiter and write into RAM.
 # Thirdly, rename all article according to its first line
 # Fourthly, remove first line in all files which contains the file name
@@ -98,9 +98,9 @@ de-fr-translated-dummy:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_trans_dummy.txt, $(YE
 
 de_fr_%_trans_dummy.txt: de_fr_%_all.txt
 	mkdir -p $(DIR_TRANS)/$*
-	sed '1d; $d' $< | csplit -z --digits=4 --quiet --suppress-matched --prefix=$(DIR_TRANS)/$*/trans_art /dev/stdin "/.EOA/" "{*}"
-	for i in "$(DIR_TRANS)/$*/"trans_art*; do mv -n "$$i" "$(DIR_TRANS)/$*/$$(basename $$(cat "$$i"|head -n1))"; done
-	sed -i '1d' "$(DIR_TRANS)/$*/"*.cuttered.sent.txt
+	sed '1d; $$d' $< | csplit -z --digits=4 --quiet --suppress-matched --prefix=$(DIR_TRANS)/$*/trans_art /dev/stdin "/.EOA/" "{*}"
+	for i in "$(DIR_TRANS)/$*/"trans_art*; do mv "$$i" "$(DIR_TRANS)/$*/$$(basename $$(cat "$$i"|head -n1))"; done
+	sed -i '1d' "$(DIR_TRANS)/$*/"*.cuttered.sent.txt || echo 'Error during pre-processing for the following year: ' $@ >> log_dummy_trans.txt
 
 
 # Create a tsv-file with all aligned articles (src, trg, translation)
@@ -119,13 +119,13 @@ de-fr-parallel-corpus-files:=$(patsubst %, $(DIR_ALIGN)/de_fr_%_parallel_corpus.
 de-fr-parallel-corpus-target: $(de-fr-parallel-corpus-files)
 
 de_fr_%_parallel_corpus.tsv: de_fr_%_aligned_docs.tsv
-	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo '.EOA' >> $@; done < $<
-	rm -r "$(DIR_TRANS)/$*"
+	while IFS=$$'\t' read -r col_src col_trg col_trans ; do  bleu-champ -q -s $${col_trans} -t $${col_trg} -S $${col_src} >> $@ ; echo '.EOA\t.EOA' >> $@; done < $<
+#	rm -r "$(DIR_TRANS)/$*"
 
 
 # Create a parallel corpus across years as tsv file
 $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv: $(de-fr-parallel-corpus-files)
-	cat > $@
+	cat  $^ > $@
 
 
 # Split the parallel corpus into separate files per language
@@ -137,32 +137,65 @@ $(DIR_ALIGN)/de_fr_sent_parallel.de: $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv
 $(DIR_ALIGN)/de_fr_sent_parallel.fr: $(DIR_ALIGN)/de_fr_all_parallel_corpus.tsv
 	cut -f2 $< > $@
 
+# Filter the parallel corpus. Only keeping sentences with a length between 20 and 600.
+$(DIR_ALIGN)/de_fr_sent_parallel_filtered.de: $(DIR_ALIGN)/de_fr_sent_parallel.de $(DIR_ALIGN)/de_fr_sent_parallel.fr
+	/mnt/storage/clfiles/resources/applications/mt/moses/vGitHub/scripts/training/clean-corpus-n.perl \
+	$(<:.de=) de fr $(@:.de=) 20 600
+$(DIR_ALIGN)/de_fr_sent_parallel_filtered.fr: $(DIR_ALIGN)/de_fr_sent_parallel_filtered.de
+
 
 #### MULTILINGUAL EMBEDDINGS ###
 DIR_EMBED?= embedding
 DIR_EMBED_DATA?= embedding/data
 
-all_sent_parallel-target: $(DIR_EMBED)/vectors.de-fr.de.vec $(DIR_EMBED)/vectors.de-fr.fr.vec
-
-# Prepare data
-$(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de: $(DIR_ALIGN)/de_fr_sent_parallel.de $(DIR_ALIGN)/de_fr_sent_parallel.fr
+# Prepare data (French is cleaned implicit)
+$(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de: $(DIR_ALIGN)/de_fr_sent_parallel_filtered.de $(DIR_ALIGN)/de_fr_sent_parallel_filtered.fr
 	python2 lib/multivec_scripts/prepare-data.py $(<:.de=) $(@:.de=) de fr \
 	--lowercase --normalize-digits --normalize-punk --min-count 10 --shuffle --script lib/multivec_scripts --threads 4 --verbose
 $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de
 
-# Train multivec models
-$(DIR_EMBED)/biskip.de-fr.bin: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr
+# Train multivec models with dimension 100
+vectors-100-de-fr-target: $(DIR_EMBED)/vectors.100.de-fr.de.vec $(DIR_EMBED)/vectors.100.de-fr.fr.vec $(DIR_EMBED)/vectors.100.de-fr.de.eval.txt
+
+$(DIR_EMBED)/biskip.100.de-fr.bin: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr
 	mkdir -p $(@D) && \
 	multivec-bi --train-src $(word 1, $^) --train-trg $(word 2, $^) --dimension 100 --min-count 10 --window-size 5 --threads 10 --iter 10 --sg --save $@
 
-$(DIR_EMBED)/biskip.de-fr.de.bin: $(DIR_EMBED)/biskip.de-fr.bin
+$(DIR_EMBED)/biskip.100.de-fr.de.bin: $(DIR_EMBED)/biskip.100.de-fr.bin
 	multivec-bi --load $< --save-src $@
 
-$(DIR_EMBED)/biskip.de-fr.fr.bin: $(DIR_EMBED)/biskip.de-fr.bin
+$(DIR_EMBED)/biskip.100.de-fr.fr.bin: $(DIR_EMBED)/biskip.100.de-fr.bin
 	multivec-bi --load $< --save-trg $@
 
-$(DIR_EMBED)/vectors.de-fr.de.vec: $(DIR_EMBED)/biskip.de-fr.de.bin
+$(DIR_EMBED)/vectors.100.de-fr.de.vec: $(DIR_EMBED)/biskip.100.de-fr.de.bin
 	multivec-mono --load $< --save-vectors $@
 
-$(DIR_EMBED)/vectors.de-fr.fr.vec: $(DIR_EMBED)/biskip.de-fr.fr.bin
+$(DIR_EMBED)/vectors.100.de-fr.fr.vec: $(DIR_EMBED)/biskip.100.de-fr.fr.bin
 	multivec-mono --load $< --save-vectors $@
+
+$(DIR_EMBED)/vectors.100.de-fr.de.eval.txt: $(DIR_EMBED)/vectors.100.de-fr.de.vec
+	python3 lib/eval_embeddings.py $< --lowercase &> $@
+
+# Train and evaluate multivec models with dimension 300
+vectors-300-de-fr-target: $(DIR_EMBED)/vectors.300.de-fr.de.vec $(DIR_EMBED)/vectors.300.de-fr.fr.vec $(DIR_EMBED)/vectors.300.de-fr.de.eval.txt
+
+$(DIR_EMBED)/biskip.300.de-fr.bin: $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.de $(DIR_EMBED_DATA)/de_fr_sent_parallel_clean.fr
+	mkdir -p $(@D) && \
+	multivec-bi --train-src $(word 1, $^) --train-trg $(word 2, $^) --dimension 300 --min-count 10 --window-size 5 --threads 10 --iter 10 --sg --save $@
+
+$(DIR_EMBED)/biskip.300.de-fr.de.bin: $(DIR_EMBED)/biskip.300.de-fr.bin
+	multivec-bi --load $< --save-src $@
+
+$(DIR_EMBED)/biskip.300.de-fr.fr.bin: $(DIR_EMBED)/biskip.300.de-fr.bin
+	multivec-bi --load $< --save-trg $@
+
+$(DIR_EMBED)/vectors.300.de-fr.de.vec: $(DIR_EMBED)/biskip.300.de-fr.de.bin
+	multivec-mono --load $< --save-vectors $@
+
+$(DIR_EMBED)/vectors.300.de-fr.fr.vec: $(DIR_EMBED)/biskip.300.de-fr.fr.bin
+	multivec-mono --load $< --save-vectors $@
+
+$(DIR_EMBED)/vectors.300.de-fr.de.eval.txt: $(DIR_EMBED)/vectors.300.de-fr.de.vec
+	python3 lib/eval_embeddings.py $< --lowercase &> $@
+
+vectors-all-de-fr-target: vectors-100-de-fr-target vectors-300-de-fr-target
