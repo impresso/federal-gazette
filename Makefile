@@ -135,7 +135,7 @@ pages-target: de.pages.tsv fr.pages.tsv it.pages.tsv
 
 
 ### Create new database file with with extended metadata
-DATA_TIF_DIR?=data_tif
+TIF_DIR?= data_tif
 
 article-info2-files+= article-info2-de.tsv
 article-info2-files+= article-info2-fr.tsv
@@ -144,7 +144,7 @@ article-info2-files+= article-info2-it.tsv
 article-info2-target: $(article-info2-files)
 
 article-info2-%.tsv: article-info-%.tsv %.pages.tsv
-	python3 lib/extend_metadata.py -i $< -o $@ --dir_pdf $(DATA_DIR) --dir_tif $(DATA_TIF_DIR)
+	python3 lib/extend_metadata.py -i $< -o $@ --dir_pdf $(DATA_DIR) --dir_tif $(TIF_DIR)
 
 
 
@@ -157,6 +157,26 @@ canonical-tif-files-target: $(canonical-tif-files)
 
 canonical-tif-files-%.tif: article-info2-%.tsv
 	python3 lib/pdf2tif.py -i $<
+
+# Convert tif into greyscale, 8-bit
+tif-files:=$(wildcard $(TIF_DIR)/*/*/*/*/*/*.tif)
+
+gray-tif-files:=$(tif-files:.tif=.gray.tif))
+gray-tif-files-target: $(gray-tif-files)
+
+
+$(TIF_DIR)/%.gray.tif:$(TIF_DIR)/%.tif
+	convert -compress lzw $< -depth 8 -colorspace Gray $@
+
+# Convert tif int jpeg2000
+jp2-files:=$(tif-files:.gray.tif=.jp2)
+jp2-files-target: $(jp2-files)
+
+$(TIF_DIR)/%.jp2:$(TIF_DIR)/%.gray.tif
+	opj_compress -r 10 -i $< -o $@
+
+
+
 
 include lib/fg-txt-by-year.mk
 
