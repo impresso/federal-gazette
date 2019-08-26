@@ -576,9 +576,9 @@ def main():
     trans = read_file(args.t)
 
     # remove first and last line of file since there is no volume organization
-    src = src[src.find("\n") + 1 : src.rfind(".eob")]
-    trg = trg[trg.find("\n") + 1 : trg.rfind(".eob")]
-    trans = trans[trans.find("\n") + 1 : trans.rfind(".eob")]
+    src = src[src.find("\n") + 1 : src.rfind(".EOB") - 5]
+    trg = trg[trg.find("\n") + 1 : trg.rfind(".EOB") - 5]
+    trans = trans[trans.find("\n") + 1 : trans.rfind(".EOB") - 5]
 
     # split the magazine into articles
     src_articles = split_articles(src, ".EOA")
@@ -606,7 +606,7 @@ def main():
     batch_size = 500
 
     for start in range(0, len(src_articles), batch_size):
-        end = start + batch_size
+        end = min(start + batch_size, len(src_articles))
         print(
             "Compute alignment for batch for document range {} between {}.".format(
                 start, end
