@@ -135,7 +135,7 @@ def get_clean_entities(doc, concat_type=True):
         if concat_type:
             ent_clean = ent_clean + "\t" + ent.label_
 
-        print(ent_clean, [t.pos_ for t in ent])
+        # print(ent_clean, [t.pos_ for t in ent])
 
         entities.append(ent_clean)
 
