@@ -7,7 +7,7 @@ Script to produce tab-separated info files from federal web sites.
 
 """
 
-import sys, codecs,re
+import sys, codecs, re
 import os
 import pandas as pd
 from optparse import OptionParser
@@ -21,12 +21,12 @@ __copyright__ = "UZH, 2018"
 __status__ = "development"
 
 
-
-sys.stderr = codecs.getwriter('UTF-8')(sys.stderr.buffer)
-sys.stdout = codecs.getwriter('UTF-8')(sys.stdout.buffer)
-sys.stdin = codecs.getreader('UTF-8')(sys.stdin.buffer)
+sys.stderr = codecs.getwriter("UTF-8")(sys.stderr.buffer)
+sys.stdout = codecs.getwriter("UTF-8")(sys.stdout.buffer)
+sys.stdin = codecs.getreader("UTF-8")(sys.stdin.buffer)
 
 OPTIONS = {}
+
 
 def main(args):
     """
@@ -36,68 +36,115 @@ def main(args):
     :return:
     """
     if len(args) == 1:
-        records = pd.read_table(args[0], low_memory=False).to_dict('records')
-        shuffle(records) # load balancing as some part comes from Bundesarchiv and others from federal office
+        records = pd.read_table(args[0], low_memory=False).to_dict("records")
+        shuffle(
+            records
+        )  # load balancing as some part comes from Bundesarchiv and others from federal office
         output_wget_commands(records)
+
 
 def output_wget_commands(records):
     downloads = 0
     nodownloads = 0
-    MKDIRCMD = ' mkdir -p {OUTPUTDIR}\n'
+    MKDIRCMD = " mkdir -p {OUTPUTDIR}\n"
     WGETCMD = ' wget --limit-rate=500k {OPTIONS} "{URL}" -O {OUTPUTDIR}/{OUTPUTFILE}\n'
     info = {}
     for r in records:
-        info['URL'] = r['article_pdf_url']
-        if 'amtsdruckschriften' in info['URL']: # Big PDF files need this parameter for download
-            info['URL'] += '&action=open'
-        info['OPTIONS'] = ''
-        info['OUTPUTDIR'] = os.path.join(OPTIONS.get('data_dir'),r['volume_language'],r['issue_date'][:4],r['issue_date'])
-        info['OUTPUTFILE'] = r['article_docid']+'.pdf'
+        info["URL"] = r["article_pdf_url"]
+        if (
+            "amtsdruckschriften" in info["URL"]
+        ):  # Big PDF files need this parameter for download
+            info["URL"] += "&action=open"
+        info["OPTIONS"] = ""
+        # example path for an issue: FedGazDe/1850/01/31/
+        year, month, day = r["issue_date"].split("-")
+        srcname = "FedGaz" + r["volume_language"].capitalize()
+        info["OUTPUTDIR"] = os.path.join(
+            OPTIONS.get("data_dir"), srcname, year, month, day
+        )
+        info["OUTPUTFILE"] = r["article_docid"] + ".pdf"
         command = " "
-        if not os.path.exists(info['OUTPUTDIR']):
+        if not os.path.exists(info["OUTPUTDIR"]):
             command = MKDIRCMD.format(**info)
-        pdffile = os.path.join(info['OUTPUTDIR'],info['OUTPUTFILE'])
-        if not os.path.exists(pdffile) or os.stat(pdffile).st_size == 0 or (not 'pdf' in magic.from_file(pdffile, mime=True) if OPTIONS['file_type_check'] else False):
+        pdffile = os.path.join(info["OUTPUTDIR"], info["OUTPUTFILE"])
+        if (
+            not os.path.exists(pdffile)
+            or os.stat(pdffile).st_size == 0
+            or (
+                not "pdf" in magic.from_file(pdffile, mime=True)
+                if OPTIONS["file_type_check"]
+                else False
+            )
+        ):
             command += WGETCMD.format(**info)
             downloads += 1
         else:
-            print('#INFO-FILE-EXISTS',pdffile, file=sys.stderr)
+            print("#INFO-FILE-EXISTS", pdffile, file=sys.stderr)
 
             nodownloads += 1
         if not command.isspace():
             print(command)
-    print('#STATS-FILES-TO-DOWNLOAD',downloads,file=sys.stderr)
-    print('#STATS-FILES-NOT-TO-DOWNLOAD',nodownloads,file=sys.stderr)
+    print("#STATS-FILES-TO-DOWNLOAD", downloads, file=sys.stderr)
+    print("#STATS-FILES-NOT-TO-DOWNLOAD", nodownloads, file=sys.stderr)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
 
     parser = OptionParser(
-        usage = '%prog [OPTIONS] [ARGS...]',
-        version='%prog 0.99', #
-        description='Download gazette federal files',
-        epilog='Contact simon.clematide@uzh.ch'
-        )
-    parser.add_option('-l', '--logfile', dest='logfilename',
-                      help='write log to FILE', metavar='FILE')
-    parser.add_option('-q', '--quiet',
-                      action='store_true', dest='quiet', default=False,
-                      help='do not print status messages to stderr')
-    parser.add_option('-d', '--debug',
-                      action='store_true', dest='debug', default=False,
-                      help='print debug information')
-    parser.add_option('-m', '--mode',
-                      action='store', dest='mode', default='wget',type=str,
-                      help='output wget: Emit wget commands for missing files (%default)')
-    parser.add_option('-N', '--file_type_check',
-                      action='store_false', dest='file_type_check', default=True,
-                      help='do not perform a file type check for PDF files (%default)')
-    parser.add_option('-D', '--data_dir',
-                      action='store', dest='data_dir', default='data_pdf',type=str,
-                      help='data dir  (%default)')
+        usage="%prog [OPTIONS] [ARGS...]",
+        version="%prog 0.99",  #
+        description="Download gazette federal files",
+        epilog="Contact simon.clematide@uzh.ch",
+    )
+    parser.add_option(
+        "-l", "--logfile", dest="logfilename", help="write log to FILE", metavar="FILE"
+    )
+    parser.add_option(
+        "-q",
+        "--quiet",
+        action="store_true",
+        dest="quiet",
+        default=False,
+        help="do not print status messages to stderr",
+    )
+    parser.add_option(
+        "-d",
+        "--debug",
+        action="store_true",
+        dest="debug",
+        default=False,
+        help="print debug information",
+    )
+    parser.add_option(
+        "-m",
+        "--mode",
+        action="store",
+        dest="mode",
+        default="wget",
+        type=str,
+        help="output wget: Emit wget commands for missing files (%default)",
+    )
+    parser.add_option(
+        "-N",
+        "--file_type_check",
+        action="store_false",
+        dest="file_type_check",
+        default=True,
+        help="do not perform a file type check for PDF files (%default)",
+    )
+    parser.add_option(
+        "-D",
+        "--data_dir",
+        action="store",
+        dest="data_dir",
+        default="data_pdf",
+        type=str,
+        help="data dir  (%default)",
+    )
 
     (options, args) = parser.parse_args()
     OPTIONS.update(vars(options))
-    if OPTIONS['debug']:
-        print("options=",OPTIONS, file=sys.stderr)
+    if OPTIONS["debug"]:
+        print("options=", OPTIONS, file=sys.stderr)
 
     main(args)

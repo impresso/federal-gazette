@@ -53,24 +53,24 @@ todo-download-target: $(todo-download-files)
 
 ### tet conversion
 # word plus with glyphs
-DATA_TETML_WORDPLUS_DIR?=data_tetml-wordplus
-de-pdf-files:=$(wildcard $(DATA_DIR)/de/*/*/*.pdf)
-fr-pdf-files:=$(wildcard $(DATA_DIR)/fr/*/*/*.pdf)
-it-pdf-files:=$(wildcard $(DATA_DIR)/it/*/*/*.pdf)
+#DATA_TETML_WORDPLUS_DIR?=data_tetml-wordplus
+de-pdf-files:=$(wildcard $(DATA_DIR)/FedGazDe/*/*/*/*.pdf)
+fr-pdf-files:=$(wildcard $(DATA_DIR)/FedGazFr/*/*/*/*.pdf)
+it-pdf-files:=$(wildcard $(DATA_DIR)/FedGazIt/*/*/*/*.pdf)
 
-de-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(de-pdf-files:.pdf=.wordplus.tetml))
-fr-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(fr-pdf-files:.pdf=.wordplus.tetml))
-it-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(it-pdf-files:.pdf=.wordplus.tetml))
+#de-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(de-pdf-files:.pdf=.wordplus.tetml))
+#fr-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(fr-pdf-files:.pdf=.wordplus.tetml))
+#it-textml-wordplus-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORDPLUS_DIR),$(it-pdf-files:.pdf=.wordplus.tetml))
 
-de-textml-wordplus-target: $(de-textml-wordplus-files)
-fr-textml-wordplus-target: $(fr-textml-wordplus-files)
-it-textml-wordplus-target: $(it-textml-wordplus-files)
+#de-textml-wordplus-target: $(de-textml-wordplus-files)
+#fr-textml-wordplus-target: $(fr-textml-wordplus-files)
+#it-textml-wordplus-target: $(it-textml-wordplus-files)
 
-all-textml-wordplus-target: de-textml-wordplus-target fr-textml-wordplus-target it-textml-wordplus-target
+#all-textml-wordplus-target: de-textml-wordplus-target fr-textml-wordplus-target it-textml-wordplus-target
 
-$(DATA_TETML_WORDPLUS_DIR)/%.wordplus.tetml:$(DATA_DIR)/%.pdf
-	mkdir -p $(@D) && \
-	tet -m wordplus --outfile $@ -v 3 $< > $@.log
+#$(DATA_TETML_WORDPLUS_DIR)/%.wordplus.tetml:$(DATA_DIR)/%.pdf
+#	mkdir -p $(@D) && \
+#	tet -m wordplus --outfile $@ -v 3 $< > $@.log
 
 DATA_TETML_WORD_DIR?=data_tetml-word
 de-textml-word-files:=$(subst $(DATA_DIR),$(DATA_TETML_WORD_DIR),$(de-pdf-files:.pdf=.word.tetml))
@@ -85,11 +85,11 @@ all-textml-word-target: de-textml-word-target fr-textml-word-target it-textml-wo
 
 $(DATA_TETML_WORD_DIR)/%.word.tetml:$(DATA_DIR)/%.pdf
 	mkdir -p $(@D) && \
-	if [[ $$(basename $(<D) ) < "1999-06-22" ]] ;\
+	if [[ $$(echo $(<D) | sed "s|\(.*\)\(....\)/\(..\)/\(..\)|\2-\3-\4|g") < "1999-06-22" ]] ;\
 	then\
-		tet -m word --lastpage last-1 --outfile $@ -v 3 $< > $@.log ; \
+		tet -m word --lastpage last-1 --pageopt "tetml={elements={line} glyphdetails={all}} contentanalysis={dehyphenate=true keephyphenglyphs=true}" --outfile $@ -v 3 $< > $@.log ; \
 	else \
-		tet -m word --outfile $@ -v 3 $< > $@.log ; \
+		tet -m word --pageopt "tetml={elements={line} glyphdetails={all}} contentanalysis={dehyphenate=true keephyphenglyphs=true}" --outfile $@ -v 3 $< > $@.log ; \
 	fi
 
 DATA_TEXT_DIR?=data_text
