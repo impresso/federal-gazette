@@ -32,7 +32,16 @@ def parse_args():
         required=True,
         action="store",
         dest="f_out",
-        help="output file",
+        help="stem of output file",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--dir",
+        required=True,
+        action="store",
+        dest="dir",
+        help="directory to save output files",
     )
 
     parser.add_argument(
@@ -67,7 +76,7 @@ def parse_args():
     parser.add_argument(
         "--trigram",
         required=False,
-        action="store",
+        action="store_true",
         dest="trigram",
         help="extracting trigrams in addition to bigrams",
     )
@@ -80,7 +89,7 @@ def write_ngrams(filename, ngrams):
     Write ngrams into tsv file sorted by descendings score
     """
     with open(filename, mode="w") as f_out:
-        sorted_ngrams = sorted(ngrams.items(), key=lambda kv: kv[1][1], reverse=True)
+        sorted_ngrams = sorted(ngrams.items(), key=lambda kv: kv[1], reverse=True)
         for ngram, score in sorted_ngrams:
             ngram = "_".join([x.decode("utf8") for x in ngram])
             line = "{}\t{}\n".format(ngram, score)
@@ -109,7 +118,9 @@ def main():
     bigram = Phraser(phrases_bigram)
     bigrams = bigram.phrasegrams
 
-    f_out = args.f_out + "_bigrams.txt"
+    f_out = args.f_out + "_bigrams." + args.lang
+    if args.dir:
+        f_out = args.dir + "/" + f_out
     write_ngrams(f_out, bigrams)
 
     if args.trigram:
@@ -120,10 +131,13 @@ def main():
             scoring="npmi",
             common_terms=stopwords,
         )
-        trigrams = trigram.phrasegrams
-        trigram = Phraser(phrases_trigram)
 
-        f_out = args.f_out + "_trigrams.txt"
+        trigram = Phraser(phrases_trigram)
+        trigrams = trigram.phrasegrams
+
+        f_out = args.f_out + "_trigrams." + args.lang
+        if args.dir:
+            f_out = args.dir + "/" + f_out
         write_ngrams(f_out, trigrams)
 
 
