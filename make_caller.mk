@@ -153,14 +153,19 @@ europarl-de-fr-files: $(DIR_EUROPARL)/Europarl.de-fr.de $(DIR_EUROPARL)/Europarl
 europarl-de-fr-cuttered-files:= $(DIR_EUROPARL)/Europarl.de-fr.cuttered.de $(DIR_EUROPARL)/Europarl.de-fr.cuttered.fr
 europarl-de-fr-cuttered-target: $(europarl-de-fr-cuttered-files)
 
+#  -k Keep same order
+# cutter produces vertical text.
+# Subsequently, make horizontal, remove trailing spaces and add new line with echo
 Europarl.de-fr.cuttered.%: Europarl.de-fr.%
-	cat $< | cutter $(*F) -T | perl -p -e "s/(?<=.)\n/ /g" | sed "/^$$/d" > $@
+	parallel --progress --pipe -k -N 1 -j 10 "cutter $(*F) -T | tr '\n' ' ' | sed 's/[[:space:]]*$$//' && echo ''" < $< > $@
+#cat $< | cutter $(*F) -T | perl -p -e "s/(?<=.)\n/ /g" | sed "/^$$/d" > $@
 
 # Merge with EuroParl corpus
-de_fr_parallel_fedgaz_europarl-files:= $(DIR_EMBED_DATA)/de_fr_parallel_fedgaz_europarl.de $(DIR_EMBED_DATA)/de_fr_parallel_fedgaz_europarl.fr
+de-fr-parallel-fedgaz-europarl-files:= $(DIR_EMBED_DATA)/de-fr-parallel-fedgaz-europarl.de $(DIR_EMBED_DATA)/de-fr-parallel-fedgaz-europarl.fr
 # TODO: weirdly, here the dir is needed, otherwise the target rule is not found
-#de_fr_parallel_fedgaz_europarl.%: de_fr_sent_parallel_filtered.% Europarl.de-fr.cuttered.%
-$(DIR_EMBED_DATA)/de_fr_parallel_fedgaz_europarl.%: $(DIR_ALIGN)/de_fr_sent_parallel_filtered.% $(DIR_EUROPARL)/Europarl.de-fr.cuttered.%
+#de-fr-parallel-fedgaz-europarl.%: de_fr_sent_parallel_filtered.% Europarl.de-fr.cuttered.%
+$(DIR_EMBED_DATA)/de-fr-parallel-fedgaz-europarl.%: $(DIR_ALIGN)/de_fr_sent_parallel_filtered.% $(DIR_EUROPARL)/Europarl.de-fr.cuttered.%
+	mkdir -p $(@D) && \
 	cat $^ > $@
 
 # Prepare data (French is cleaned implicitly)
@@ -168,10 +173,10 @@ de-fr-sent-parallel-clean-de-files:=$(DIR_EMBED_DATA)/de_fr_parallel_clean.de
 de-fr-sent-parallel-clean-fr-files:=$(DIR_EMBED_DATA)/de_fr_parallel_clean.fr
 de-fr-sent-parallel-clean-files:= $(de-fr-sent-parallel-clean-de-files) $(de-fr-sent-parallel-clean-fr-files)
 
-$(de-fr-sent-parallel-clean-de-files): $(de_fr_parallel_fedgaz_europarl-files)
+$(de-fr-sent-parallel-clean-de-files): $(de-fr-parallel-fedgaz-europarl-files)
 	python2 lib/multivec_scripts/prepare-data.py $(<:.de=) $(@:.de=) de fr \
 	--lowercase --normalize-digits --min-count 5 --shuffle --script lib/multivec_scripts --threads 10 --verbose
-$(de-fr-sent-parallel-clean-fr-files): $(de_fr_parallel_fedgaz_europarl-files)
+$(de-fr-sent-parallel-clean-fr-files): $(de-fr-sent-parallel-clean-de-files)
 
 # keep only alpha-numeric character, underscore, and hyphen
 de-fr-sent-parallel-clean-nopunc-files:= $(DIR_EMBED_DATA)/de_fr_parallel_clean_nopunc.de $(DIR_EMBED_DATA)/de_fr_parallel_clean_nopunc.fr
@@ -180,7 +185,7 @@ de-fr-sent-parallel-clean-nopunc-files:= $(DIR_EMBED_DATA)/de_fr_parallel_clean_
 de_fr_parallel_clean_nopunc.%: de_fr_parallel_clean.%
 	cat $< | sed "s/ [^[:alnum:] \_-]\+/ /g" | sed "s/ \+/ /g" > $@
 
-de-fr-prepare-embedding-data-target: $(de-fr-sent-parallel-clean-nopunc-files) $(de_fr_parallel_fedgaz_europarl-files)
+de-fr-prepare-embedding-data-target: $(de-fr-sent-parallel-clean-nopunc-files) $(de-fr-parallel-fedgaz-europarl-files)
 
 # Train multivec models with dimension 100
 vectors-100-de-fr-target: $(DIR_EMBED)/vectors.100.de-fr.de.vec $(DIR_EMBED)/vectors.100.de-fr.fr.vec $(DIR_EMBED)/vectors.100.de-fr.de.eval.txt
