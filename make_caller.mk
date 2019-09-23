@@ -141,7 +141,14 @@ $(DIR_ALIGN)/de_fr_sent_parallel_filtered.de: $(DIR_ALIGN)/de_fr_sent_parallel.d
 	$(<:.de=) de fr $(@:.de=) 20 600
 $(DIR_ALIGN)/de_fr_sent_parallel_filtered.fr: $(DIR_ALIGN)/de_fr_sent_parallel_filtered.de
 
-
+#### PHRASE EXTRACTION
+# extract phrases with gensim phrase extraction (scoring with NPMI)
+DIR_PHRASES?= phrases
+phrases-de-fr-files:= $(DIR_PHRASES)/phrases_bigrams.de $(DIR_PHRASES)/phrases_trigrams.de $(DIR_PHRASES)/phrases_bigrams.fr $(DIR_PHRASES)/phrases_trigrams.fr
+phrases-de-fr-target: $(phrases-de-fr-files)
+$(DIR_PHRASES)/phrases_bigrams.% $(DIR_PHRASES)/phrases_trigrams.%: $(DIR_ALIGN)/de_fr_sent_parallel.%
+	mkdir -p $(@D) && \
+	python3 lib/phrase_detection.py -l $(*F) -i $< -o phrases --dir $(@D) --trigram
 
 #### MULTILINGUAL EMBEDDINGS ###
 DIR_EMBED?= embedding
