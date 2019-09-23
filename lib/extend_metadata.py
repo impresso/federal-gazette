@@ -88,6 +88,7 @@ def set_continious_page_numbering(df, print_log=False):
 
     df["log"] = ""
     df["article_page_last"] = np.nan
+    df["pruned"] = False
 
     titles = ["inserate", "beilage"]
 
@@ -163,6 +164,8 @@ def set_continious_page_numbering(df, print_log=False):
                         df.loc[art, "log"] = "supplements"
 
                     elif art_sub_start == art_start + art_length - 1 != issue_end:
+                        df.loc[art, "pruned"] = True
+
                         if art_length >= 1:
                             # if an article ends shares its last page with the subsequent article
                             # set article's last page based on its page count deducted by 1 to prune it at the last full page
@@ -174,7 +177,7 @@ def set_continious_page_numbering(df, print_log=False):
                             df.loc[art, "log"] = "segment_in more_than_one_page"
 
                         else:
-                            # additionally, article starts and ends on the same page
+                            # article starts and ends on the same page
                             df.loc[art, "article_page_last"] = (
                                 df.loc[art, "article_page_first"] + art_length - 1
                             )
@@ -231,18 +234,16 @@ def set_page_count_full(df):
     return df
 
 
-def set_impresso_numbering(df):
-    df["impresso_issue_page"] = df.groupby(["issue_date"])["page_count_full"].apply(
+def set_canonical_numbering(df):
+    """
+    Set first and last pages according to canonical naming schema of impresso,
+    which enumerates page numbers within an issue published on a single day.
+    """
+
+    df["canonical_page_last"] = df.groupby(["issue_date"])["page_count_full"].apply(
         lambda x: x.cumsum()
     )
-    df["impresso_issue_page"] = df["impresso_issue_page"] - df["page_count_full"] + 1
-
-    df["impresso_issue_page"] = df["impresso_issue_page"].astype("int")
-
-    # set the 4-digit format
-    df["impresso_issue_page"] = df["impresso_issue_page"].map(
-        lambda x: "{:04d}".format(x)
-    )
+    df["canonical_page_first"] = df["canonical_page_last"] - df["page_count_full"] + 1
 
     return df
 
@@ -263,7 +264,7 @@ def set_tif_path(df, lang, dir_tif):
         + "-"
         + df[["year", "month", "day"]].astype(str).apply(lambda x: "-".join(x), axis=1)
         + "-a-"
-        + df["impresso_issue_page"].map(str)
+        + df["canonical_page_first"].map(lambda x: "{:04d}".format(x))
         + ".tif"
     )
 
@@ -301,7 +302,7 @@ def main():
     df = set_page_count(df, lang, args.dir_pdf)
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
-    df = set_impresso_numbering(df)
+    df = set_canonical_numbering(df)
     df = set_tif_path(df, lang, args.dir_tif)
 
     df.to_csv(args.f_out, sep="\t", index=False)
