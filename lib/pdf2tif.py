@@ -44,7 +44,7 @@ def extract_tif_via_bash(f_in):
     rename = """
     a=1
     for i in `ls -v {0}/*`; do
-      new=$(printf "{1}-%04d.tif" "$a")
+      new=$(printf "{1}-p%04d.tif" "$a")
       mv "$i" "{0}/$new"
       a=$((a+1))
     done
@@ -52,7 +52,7 @@ def extract_tif_via_bash(f_in):
 
     df = pd.read_csv(f_in, sep="\t", parse_dates=["issue_date"])
 
-    # remove potential existing data
+    # remove potential existing data of this newspaper
     trg_dir = "/".join(df.loc[0, "canonical_dir_tif"].split("/")[:2])
     os.system("rm -rf " + trg_dir)
 
@@ -83,8 +83,7 @@ def main():
     # parse arguments
     args = parse_args()
 
-    f_db = args.f_in
-    extract_tif_via_bash(f_db)
+    extract_tif_via_bash(args.f_in)
 
 
 ################################################################################

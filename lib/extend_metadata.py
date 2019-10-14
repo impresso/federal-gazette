@@ -116,8 +116,6 @@ def set_continious_page_numbering(df, print_log=False):
                     art_sub_start = art_start + art_length
 
                 issue_end = df.loc[art, "issue_page_last"]
-                # issue_number = df.loc[art, 'issue_number']
-                # issue_number_sub = df.loc[art + 1, 'issue_number']
 
                 if art_sub_start == art_start + art_length:
                     # if an article ends at the end of a page
@@ -164,24 +162,21 @@ def set_continious_page_numbering(df, print_log=False):
                         df.loc[art, "log"] = "supplements"
 
                     elif art_sub_start == art_start + art_length - 1 != issue_end:
+                        # if an article shares its last page with the subsequent article
+                        # set article's last page based on its page count deducted by 1 to prune it at the last full page
+                        # this is used heuristically before we apply logical article segmentation
+
                         df.loc[art, "pruned"] = True
+                        df.loc[art, "article_page_last"] = (
+                            df.loc[art, "article_page_first"] + art_length - 1
+                        )
+                        counter["segment_in"] += 1
 
                         if art_length >= 1:
-                            # if an article ends shares its last page with the subsequent article
-                            # set article's last page based on its page count deducted by 1 to prune it at the last full page
-                            # this is used a heuristic until there is a proper segmentation
-                            df.loc[art, "article_page_last"] = (
-                                df.loc[art, "article_page_first"] + art_length - 1
-                            )  # before: subtraction by 2
-                            counter["segment_in"] += 1
                             df.loc[art, "log"] = "segment_in more_than_one_page"
 
                         else:
                             # article starts and ends on the same page
-                            df.loc[art, "article_page_last"] = (
-                                df.loc[art, "article_page_first"] + art_length - 1
-                            )
-                            counter["segment_in"] += 1
                             df.loc[art, "log"] = "segment_in less_than_one_page"
 
                     else:
@@ -240,10 +235,17 @@ def set_canonical_numbering(df):
     which enumerates page numbers within an issue published on a single day.
     """
 
+    # set to the last full page
     df["canonical_page_last"] = df.groupby(["issue_date"])["page_count_full"].apply(
         lambda x: x.cumsum()
     )
     df["canonical_page_first"] = df["canonical_page_last"] - df["page_count_full"] + 1
+
+    # Set actual page count for pruned articles that end on the same page
+    # where the next article starts
+    df["canonical_page_last"] = np.where(
+        df.pruned == True, df.canonical_page_last + 1, df.canonical_page_last
+    )
 
     return df
 
@@ -263,7 +265,7 @@ def set_tif_path(df, lang, dir_tif):
         abbr
         + "-"
         + df[["year", "month", "day"]].astype(str).apply(lambda x: "-".join(x), axis=1)
-        + "-a-"
+        + "-a-p"
         + df["canonical_page_first"].map(lambda x: "{:04d}".format(x))
         + ".tif"
     )
