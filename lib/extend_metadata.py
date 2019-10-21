@@ -56,21 +56,19 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_page_count(df, lang, dir_pdf):
-    df_pages = pd.read_csv(lang + ".pages.tsv", sep="\t", header=None)
+def set_page_count(df, can_src_name, dir_pdf):
+    df_pages = pd.read_csv(can_src_name + ".pages.tsv", sep="\t", header=None)
     df_pages = df_pages.rename(columns={0: "pdf_path", 1: "page_count"})
 
     # derive file path
     df["pdf_path"] = (
         dir_pdf
         + "/"
-        + lang
+        + can_src_name
         + "/"
-        + df["issue_date"].map(lambda x: str(x.year))
+        + df["issue_date"].astype(str).str.replace("-", "/")
         + "/"
-        + df["issue_date"].map(lambda x: str(x.date()))
-        + "/"
-        + df["article_docid"].map(lambda x: str(x))
+        + df["article_docid"].astype(str)
         + ".pdf"
     )
     df = pd.merge(left=df, right=df_pages, how="left", on="pdf_path")
@@ -250,19 +248,18 @@ def set_canonical_numbering(df):
     return df
 
 
-def set_tif_path(df, lang, dir_tif):
-    abbr = "FedGaz" + lang.capitalize()
+def set_tif_path(df, can_src_name, dir_tif):
     df["canonical_dir_tif"] = (
         dir_tif
         + "/"
-        + abbr
+        + can_src_name
         + "/"
         + df[["year", "month", "day"]].astype(str).apply(lambda x: "/".join(x), axis=1)
         + "/a"
     )
 
     df["canonical_fname_tif"] = (
-        abbr
+        can_src_name
         + "-"
         + df[["year", "month", "day"]].astype(str).apply(lambda x: "-".join(x), axis=1)
         + "-a-p"
@@ -280,7 +277,7 @@ def main():
     args = parse_args()
 
     df = pd.read_csv(args.f_in, sep="\t", parse_dates=["issue_date"])
-    lang = args.f_in.split(".")[0].split("-")[-1]  # parse language id
+    can_src_name = args.f_in.split(".")[0].split("-")[-1]  # e.g. FedGazDe
 
     df.sort_values(
         by=["issue_date", "article_page_first", "article_docid"], inplace=True
@@ -301,11 +298,11 @@ def main():
     # set attribute whether pdf is a scan with OCR or a fully digital copy
     df["ocr"] = np.where(df["issue_date"] <= "1999-06-15", True, False)
 
-    df = set_page_count(df, lang, args.dir_pdf)
+    df = set_page_count(df, can_src_name, args.dir_pdf)
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
     df = set_canonical_numbering(df)
-    df = set_tif_path(df, lang, args.dir_tif)
+    df = set_tif_path(df, can_src_name, args.dir_tif)
 
     df.to_csv(args.f_out, sep="\t", index=False)
 
