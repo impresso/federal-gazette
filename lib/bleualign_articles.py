@@ -561,6 +561,28 @@ def corpus_figures(articles, prefix):
     return metadata
 
 
+def aggregate_stats(collection):
+    """
+    Aggregate of relative and absolute corpus statistics
+    """
+
+    stats_aggr = {}
+
+    # sum up absolute numbers
+    for key in set(collection[0]):
+        stats_aggr[key] = sum([stats.get(key, 0) for stats in collection])
+
+    # recompute relative numbers
+    stats_aggr["src_rel_aligned"] = (
+        stats_aggr["dp_parallel_pairs"] / stats_aggr["src_n_docs"]
+    )
+    stats_aggr["trg_rel_aligned"] = (
+        stats_aggr["dp_parallel_pairs"] / stats_aggr["trg_n_docs"]
+    )
+
+    return stats_aggr
+
+
 ################################################################################
 
 
@@ -601,7 +623,7 @@ def main():
     # compare split of source article to all potential target articles
     definitive_alignments = []
     comparable_alignments = []
-    stats_alignments = {}
+    stats_alignments = []
 
     batch_size = 500
 
@@ -616,29 +638,26 @@ def main():
             src_articles[start:end], trg_articles, trans_articles[start:end]
         )
 
-        # sum up values across batches
+        # aggregate across batches
         definitive_alignments += definitive_alignments_temp
         comparable_alignments += comparable_alignments_temp
-        stats_alignments = {
-            k: stats_alignments.get(k, 0) + stats_alignments_temp.get(k, 0)
-            for k in set(stats_alignments_temp)
-        }
+        stats_alignments.append(stats_alignments_temp)
 
-    # add additional information to statistics
-    stats_alignments["src"] = args.src
-    stats_alignments["trg"] = args.trg
+    # prepare all statistics
+    stats_aggr = aggregate_stats(stats_alignments)
+    stats_aggr["src"] = args.src
+    stats_aggr["trg"] = args.trg
     corpus_figures_src = corpus_figures(src_articles, "src")
     corpus_figures_trg = corpus_figures(trg_articles, "trg")
-
-    stats_alignments = {**stats_alignments, **corpus_figures_src, **corpus_figures_trg}
+    stats_aggr = {**stats_aggr, **corpus_figures_src, **corpus_figures_trg}
 
     # write alignment statistics to csv
     fname_stats = args.output[:-4] + "_stats.csv"
     with open(fname_stats, "w", newline="") as csvfile:
-        fieldnames = sorted(stats_alignments.keys())
+        fieldnames = sorted(stats_aggr.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerow(stats_alignments)
+        writer.writerow(stats_aggr)
 
     # write alignments to xml file
     if args.comp:
