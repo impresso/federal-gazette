@@ -52,12 +52,19 @@ def parse_args():
         dest="dir_tif",
         help="destination directory for canonical tif files",
     )
+    parser.add_argument(
+        "--pages",
+        required=True,
+        action="store",
+        dest="f_pages",
+        help="input file that contains information about the pages for all pdf",
+    )
 
     return parser.parse_args()
 
 
-def set_page_count(df, can_src_name, dir_pdf):
-    df_pages = pd.read_csv(can_src_name + ".pages.tsv", sep="\t", header=None)
+def set_page_count(df, can_src_name, dir_pdf, f_pages):
+    df_pages = pd.read_csv(f_pages, sep="\t", header=None)
     df_pages = df_pages.rename(columns={0: "pdf_path", 1: "page_count"})
 
     # derive file path
@@ -298,7 +305,7 @@ def main():
     # set attribute whether pdf is a scan with OCR or a fully digital copy
     df["ocr"] = np.where(df["issue_date"] <= "1999-06-15", True, False)
 
-    df = set_page_count(df, can_src_name, args.dir_pdf)
+    df = set_page_count(df, can_src_name, args.dir_pdf, args.f_pages)
     df = set_continious_page_numbering(df)
     df = set_page_count_full(df)
     df = set_canonical_numbering(df)
