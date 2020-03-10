@@ -148,17 +148,22 @@ DIR_EMBED?= embedding
 DIR_EMBED_DATA?= embedding/data
 DIR_EUROPARL?= europarl_data
 
-# Tokenize Europarl corpus (perl command to retrieve line-based structure)
-europarl-de-fr-files: $(DIR_EUROPARL)/Europarl.de-fr.de $(DIR_EUROPARL)/Europarl.de-fr.fr
+# Get the official Europarl corpus
+$(DIR_EUROPARL)/Europarl.de-fr.de $(DIR_EUROPARL)/Europarl.de-fr.fr:
+	wget http://opus.nlpl.eu/download.php?f=Europarl/v3/moses/de-fr.txt.zip -O $(DIR_EUROPARL).zip; \
+	unzip $(DIR_EUROPARL).zip -d $(DIR_EUROPARL); \
+	rm $(DIR_EUROPARL).zip
+
 europarl-de-fr-cuttered-files:= $(DIR_EUROPARL)/Europarl.de-fr.cuttered.de $(DIR_EUROPARL)/Europarl.de-fr.cuttered.fr
 europarl-de-fr-cuttered-target: $(europarl-de-fr-cuttered-files)
 
-#  -k Keep same order
+# Tokenize Europarl corpus
 # cutter produces vertical text.
 # Subsequently, make horizontal, remove trailing spaces and add new line with echo
+#  -k Keep same order
 Europarl.de-fr.cuttered.%: Europarl.de-fr.%
 	parallel --progress --pipe -k -N 1 -j 10 "cutter $(*F) -T | tr '\n' ' ' | sed 's/[[:space:]]*$$//' && echo ''" < $< > $@
-#cat $< | cutter $(*F) -T | perl -p -e "s/(?<=.)\n/ /g" | sed "/^$$/d" > $@
+
 
 # Merge with EuroParl corpus
 de-fr-parallel-fedgaz-europarl-files:= $(DIR_EMBED_DATA)/de-fr-parallel-fedgaz-europarl.de $(DIR_EMBED_DATA)/de-fr-parallel-fedgaz-europarl.fr
