@@ -1,6 +1,5 @@
 {
   "newspapers": {
-      "FedGazFr": "1849/01/01-1999/06/15",
       "FedGazDe": "1849/01/01-1999/06/15"
     },
   "exclude_newspapers": [],
