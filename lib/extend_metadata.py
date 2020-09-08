@@ -3,8 +3,8 @@
 
 
 """
-Extend tsv-file with more metadata (path to pdf, number of pdf pages)
-Sorry, for the awful code which seems necessary to cover various cases
+Extend the dataset with more metadata and perform a heuristic detection of
+multiple instances of a single page due to in-page article segmentation.
 """
 
 __author__ = "Alex Flückiger"
@@ -13,7 +13,6 @@ __organisation__ = "Institute of Computational Linguistics, University of Zurich
 __copyright__ = "UZH, 2019"
 __status__ = "development"
 
-from collections import Counter
 import argparse
 import pandas as pd
 import numpy as np
@@ -28,12 +27,7 @@ def parse_args():
         "-i", "--input", required=True, action="store", dest="f_in", help="input file"
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        required=True,
-        action="store",
-        dest="f_out",
-        help="output file",
+        "-o", "--output", required=True, action="store", dest="f_out", help="output file",
     )
 
     parser.add_argument(
@@ -63,7 +57,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_page_count(df, can_src_name, dir_pdf, f_pages):
+def set_empirical_page_count(df, can_src_name, dir_pdf, f_pages):
     df_pages = pd.read_csv(f_pages, sep="\t", header=None)
     df_pages = df_pages.rename(columns={0: "pdf_path", 1: "page_count"})
 
@@ -81,7 +75,7 @@ def set_page_count(df, can_src_name, dir_pdf, f_pages):
     df = pd.merge(left=df, right=df_pages, how="left", on="pdf_path")
 
     # subtract 1 from page count for every article published until 15.06.1999.
-    # reason: last page contains only meta-information in this case,.
+    # reason: last page contains only meta-information in this period.
     df.loc[df["issue_date"] <= "1999-06-15", "page_count"] = df.loc[
         df["issue_date"] <= "1999-06-15", "page_count"
     ].map(lambda x: x - 1)
@@ -89,147 +83,63 @@ def set_page_count(df, can_src_name, dir_pdf, f_pages):
     return df
 
 
-def set_continious_page_numbering(df, print_log=False):
-
-    df["log"] = ""
-    df["article_page_last"] = np.nan
-    df["pruned"] = False
-
-    titles = ["inserate", "beilage"]
-
-    for year in df.year.unique():
-
-        counter = Counter()
-
-        for volume in df[df.year == year].volume_number.unique():
-
-            year_vol_arts = [
-                index
-                for index, row in df[
-                    (df.year == year) & (df.volume_number == volume)
-                ].iterrows()
-            ]
-
-            for art in year_vol_arts:
-                art_start = df.loc[art, "article_page_first"]
-                art_length = df.loc[art, "page_count"]
-                try:
-                    art_sub_start = df.loc[art + 1, "article_page_first"]
-                except KeyError:
-                    # for the last article there is no subsequent article
-                    # set hypothetical start of next article
-                    art_sub_start = art_start + art_length
-
-                issue_end = df.loc[art, "issue_page_last"]
-
-                if art_sub_start == art_start + art_length:
-                    # if an article ends at the end of a page
-                    # set article's last page based on its page count
-                    df.loc[art, "article_page_last"] = (
-                        df.loc[art, "article_page_first"] + art_length - 1
-                    )
-                    counter["segment_end"] += 1
-                    df.loc[art, "log"] = "segment_end_1"
-
-                elif art_sub_start == art_start + art_length - 1 == issue_end:
-                    # handle special case for last article before supplements
-                    # set article's last page based on its page count
-                    df.loc[art, "article_page_last"] = (
-                        df.loc[art, "article_page_first"] + art_length - 1
-                    )
-                    counter["segment_end"] += 1
-                    df.loc[art, "log"] = "segment_end_2"
-
-                elif art_sub_start == 1:
-                    # if article is at the end of the volume (before 1999) or at the end of year (since 1999)
-                    # set article's last page based on its page count
-                    df.loc[art, "article_page_last"] = (
-                        df.loc[art, "article_page_first"] + art_length - 1
-                    )
-                    counter["segment_end"] += 1
-                    df.loc[art, "log"] = "segment_end_3"
-
-                # irregular cases for supplements or in-page segementation
-                else:
-                    if art_start == issue_end or any(
-                        t in df.loc[art, "article_title"].lower() for t in titles
-                    ):
-                        # if it is supplement that are defined as a one pager at the end OR based on title
-                        # set article's first page one higher wtr to the end of the preceding article
-                        df.loc[art, "article_page_first"] = (
-                            df.loc[art - 1, "article_page_last"] + 1
-                        )
-                        # and adjust article's last page accordingly based on page count
-                        df.loc[art, "article_page_last"] = (
-                            df.loc[art, "article_page_first"] + art_length - 1
-                        )
-                        counter["supplements"] += 1
-                        df.loc[art, "log"] = "supplements"
-
-                    elif art_sub_start == art_start + art_length - 1 != issue_end:
-                        # if an article shares its last page with the subsequent article
-                        # set article's last page based on its page count deducted by 1 to prune it at the last full page
-                        # this is used heuristically before we apply logical article segmentation
-
-                        df.loc[art, "pruned"] = True
-                        df.loc[art, "article_page_last"] = (
-                            df.loc[art, "article_page_first"] + art_length - 1
-                        )
-                        counter["segment_in"] += 1
-
-                        if art_length >= 1:
-                            df.loc[art, "log"] = "segment_in more_than_one_page"
-
-                        else:
-                            # article starts and ends on the same page
-                            df.loc[art, "log"] = "segment_in less_than_one_page"
-
-                    else:
-                        if print_log:
-                            print(
-                                art,
-                                df.loc[art, "article_title"],
-                                df.loc[art, "article_pdf_url"],
-                                art_sub_start,
-                                art_start,
-                                art_length,
-                            )
-                        # set proper empirical page count even when there are some irregularities in this record
-                        df.loc[art, "article_page_last"] = (
-                            df.loc[art, "article_page_first"] + art_length - 1
-                        )
-                        counter["segment_error"] += 1
-                        df.loc[art, "log"] = "segment_suspicious"
-        if print_log:
-            print("\n")
-            print(year)
-            print("# articles end-page segmentation:", counter["segment_end"])
-            print("# articles in-page segmentation:", counter["segment_in"])
-            print("# supplements (no segmentation):", counter["supplements"])
-            print("# articles suspicious segmentation:", counter["segment_error"])
-            total_art = sum([val for key, val in counter.items()])
-            print("# articles (total):", total_art)
-
-    df["article_page_last"] = df["article_page_last"].astype("int")
-
-    return df
-
-
-def set_page_count_full(df):
+def find_overlapping_pages(df):
     """
-    The number may be one less than page_count since only pages
-    which belong exclusively to an article are counted.
-    The potential remainder is assigned to the subsequent article.
+    Finds multiplied instances of an identical page shared by two subsequent
+    articles due to in-page article segmentation.
+
+    The heuristic leverages the assumption that such overlap can only occur
+    within an issue of a particular day. However, supplements are excluded from
+    this heuristic as the original metadata is not consistent.
+    The results of this procedure are used downstream to perform a heuristic
+    article segmentation.
     """
+
+    df["page_count_full"] = df["page_count"]
+    df["supplement"] = df["article_title"].str.contains(r"inserate|beilage", case=False)
 
     df["article_page_first_next"] = df["article_page_first"].shift(-1)
-    df["issue_date_next"] = df["issue_date"].shift(-1)
-    df["page_count_full"] = np.where(
-        (df.article_page_last == df.article_page_first_next)
-        & (df.issue_date == df.issue_date_next),
-        df.page_count - 1,
-        df.page_count,
-    )
+    df["supplement_next"] = df["supplement"].shift(-1)
+
+    groups = df.groupby("issue_date")
+
+    for _, group in groups:
+
+        n_articles = len(group)
+
+        for group_pos, (idx, article) in enumerate(group.iterrows()):
+
+            art_start = article["article_page_first"]
+            art_length = article["page_count"]
+            art_end = art_start + art_length - 1
+
+            art_next_start = article["article_page_first_next"]
+            art_next_supplement = article["supplement_next"]
+
+            issue_end = article["issue_page_last"]
+
+            # identifying two instances of a single page,
+            # shared between two subsequent articles
+
+            # the heuristic presumes that supplements never share pages with
+            # a previous article as the underlying metadata is incorrect
+            # in the majority of cases
+
+            if group_pos + 1 < n_articles and art_end == art_next_start:
+
+                if not (
+                    # not considering supplements that are defined as a one pager at the end of an issue
+                    art_next_start == issue_end
+                    # not considering any supplements heuristically identified by title
+                    or art_next_supplement
+                ):
+
+                    df.loc[idx, "page_count_full"] = art_length - 1
+
+    df["pruned"] = np.where(df.page_count_full != df.page_count, True, False)
+
+    # remove temporary columns
+    df.drop(["article_page_first_next", "supplement_next"], axis=1, inplace=True)
 
     return df
 
@@ -246,7 +156,7 @@ def set_canonical_numbering(df):
     )
     df["canonical_page_first"] = df["canonical_page_last"] - df["page_count_full"] + 1
 
-    # Set actual page count for pruned articles that end on the same page
+    # Set the actual page count for pruned articles that end on the same page
     # where the next article starts
     df["canonical_page_last"] = np.where(
         df.pruned == True, df.canonical_page_last + 1, df.canonical_page_last
@@ -286,9 +196,7 @@ def main():
     df = pd.read_csv(args.f_in, sep="\t", parse_dates=["issue_date"])
     can_src_name = args.f_in.split(".")[0].split("-")[-1]  # e.g. FedGazDe
 
-    df.sort_values(
-        by=["issue_date", "article_page_first", "article_docid"], inplace=True
-    )
+    df.sort_values(by=["issue_date", "article_page_first", "article_docid"], inplace=True)
     # deduplication on unique article id
     df["is_duplicate"] = df["article_docid"].duplicated()
     df = df.loc[df["is_duplicate"] == False]
@@ -305,9 +213,9 @@ def main():
     # set attribute whether pdf is a scan with OCR or a fully digital copy
     df["ocr"] = np.where(df["issue_date"] <= "1999-06-15", True, False)
 
-    df = set_page_count(df, can_src_name, args.dir_pdf, args.f_pages)
-    df = set_continious_page_numbering(df)
-    df = set_page_count_full(df)
+    df = set_empirical_page_count(df, can_src_name, args.dir_pdf, args.f_pages)
+
+    df = find_overlapping_pages(df)
     df = set_canonical_numbering(df)
     df = set_tif_path(df, can_src_name, args.dir_tif)
 
