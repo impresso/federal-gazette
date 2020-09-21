@@ -56,28 +56,13 @@ def parse_args():
     # required arguments: a source file, the source file translated into the target language, a target file
     # optional arguments: name for output file, whether or not comparable articles should be included in alignments-file or stored separatly
     parser.add_argument(
-        "-src",
-        "--source",
-        required=True,
-        action="store",
-        dest="src",
-        help="source text",
+        "-src", "--source", required=True, action="store", dest="src", help="source text",
     )
     parser.add_argument(
-        "-trg",
-        "--target",
-        required=True,
-        action="store",
-        dest="trg",
-        help="target text",
+        "-trg", "--target", required=True, action="store", dest="trg", help="target text",
     )
     parser.add_argument(
-        "-t",
-        "--translation",
-        required=True,
-        action="store",
-        dest="t",
-        help="source translation",
+        "-t", "--translation", required=True, action="store", dest="t", help="source translation",
     )
     parser.add_argument(
         "-o",
@@ -89,12 +74,7 @@ def parse_args():
         help="alignment output file name",
     )
     parser.add_argument(
-        "-c",
-        "--comparable",
-        required=False,
-        default=False,
-        action="store_true",
-        dest="comp",
+        "-c", "--comparable", required=False, default=False, action="store_true", dest="comp",
     )
 
     return parser.parse_args()
@@ -116,11 +96,7 @@ def read_file(filename):
 def split_articles(text, string):
     """splits a given string into articles"""
 
-    return [
-        article
-        for article in text.split(string)
-        if article != "\n" and article != " \n"
-    ]
+    return [article for article in text.split(string) if article != "\n" and article != " \n"]
 
 
 ################################################################################
@@ -152,15 +128,14 @@ def num_repr(sentences):
 def write_alignments_to_xml(alignments, outfile):
     """uses the computed alignments to generate an article alignment xml"""
 
-    # set up xml
     root = etree.Element("TEI")
     xml = etree.ElementTree(root)
 
     if not alignments:
         xml.write(outfile, xml_declaration=True, encoding="utf-8", pretty_print=True)
+        print("No alignments found.")
         return None
 
-    # create basic xml structure for new book
     header = etree.SubElement(root, "teiHeader")
     try:
         header.text = alignments[0]["src"][:14]  # extract path to language folder
@@ -178,17 +153,15 @@ def write_alignments_to_xml(alignments, outfile):
     linkGrp.set("targType", "yearbook")
     linkGrp.set("xtargets", alignments[0]["src"] + ";" + alignments[0]["trg"])
 
-    # iterate over all articles
     for aligned in alignments:
-        # insert xml element for current article
         article = etree.SubElement(linkGrp, "link")
         article.set("targType", "article")
-        article.set("method", aligned["method"])
-        score = "{:.2f}".format(float(aligned["score"]))
-        article.set("score", score)
+        article.set("method", aligned.get("method"))
+        article.set("bleu", f'{aligned.get("bleu"):.2f}')
+        article.set("overlap_numbers", f'{aligned.get("overlap_numbers"):.2f}')
+        article.set("cosine_similarity", f'{aligned.get("cosine_similarity", 0):.2f}')
         article.set("xtargets", aligned["src"] + ";" + aligned["trg"])
 
-    # write XML tree to file
     xml.write(outfile, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
 
@@ -261,10 +234,7 @@ def compute_max_alignment(trans_data, trg_data):
     n_docs_trg = len(trg_data)
 
     matrix = [
-        [
-            [0.0, defaultdict(tuple), defaultdict(int)]
-            for art2 in range(0, n_docs_trg + 1)
-        ]
+        [[0.0, defaultdict(tuple), defaultdict(int)] for art2 in range(0, n_docs_trg + 1)]
         for art in range(0, n_docs_trans + 1)
     ]
 
@@ -286,11 +256,9 @@ def compute_max_alignment(trans_data, trg_data):
             # to speed up the alignment process
             art1_length = sum([len(sent.split()) for sent in article1])
             art2_length = sum([len(sent.split()) for sent in article2])
-            ratio_length = min((art1_length, art2_length)) / max(
-                (art1_length, art2_length)
-            )
+            ratio_length = min((art1_length, art2_length)) / max((art1_length, art2_length))
 
-            if ratio_length > 0.6 and ratio_length <= 1:
+            if ratio_length > 0.6:
                 # compute BLEU score between current translated source and target article:
                 refs = cook_refs([" ".join(article2).split()[1:]])
                 test = cook_test(" ".join(article1).split()[1:], refs)
@@ -367,17 +335,9 @@ def align(src_articles, trg_articles, trans_articles):
         alignments = compute_max_alignment(trans_data, trg_data)
         swapped = False
 
-    # generate status message
-    output_str = ""
-    output_str += "\n\nProcessing:"
-    output_str += (
-        "\n\n------------------------------------------------------------------\n"
-    )
-
     # set up dictionaries for parallel articles and comparable articles
     definitive_alignments = []
     comparable_alignments = []
-    stats_alignments = {}
 
     # iterate over all possible alignments found with dynamic programming
     for art, data in alignments.items():
@@ -386,46 +346,41 @@ def align(src_articles, trg_articles, trans_articles):
         # if trans_data and trg_data were exchanged find the correct ids!
         try:
             if swapped:
-                score = data[1]
+                bleu = data[1]
                 src_art = src_data[data[0]]
                 trg_art = trg_data[art]
             else:
-                score = data[1]
+                bleu = data[1]
                 src_art = src_data[art]
                 trg_art = trg_data[data[0]]
         except (TypeError, IndexError):
             continue
 
-        # if the BLEU score is higher than 0.1 accept them as parallel articles
-        if score > 0.1:
-            output_str += (
-                "\n\tsrc art - \033[92m "
-                + src_art[0]
-                + " \taligned with\t "
-                + trg_art[0]
-                + " \033[0m\t- trg art"
-            )
+        # get a set of numbers occurring in each article, compute how many percent are represented in both articles
+        # If there are only few numbers, set arbitrary score as it is not reliable
+        src_nums = set(num_repr(src_art))
+        trg_nums = set(num_repr(trg_art))
+
+        if max(len(src_nums), len(trg_nums)) > 3:
+            sim_nums = len(src_nums & trg_nums) / max(len(src_nums), len(trg_nums))
+        else:
+            sim_nums = 0.4
+
+        # if the BLEU score > 0.1 and overlapping numbers > 0.5 accept as parallel articles
+        if bleu > 0.1 and sim_nums >= 0.4:
 
             align_info = {
                 "src": src_art[0],
                 "trg": trg_art[0],
                 "method": "BLEU",
-                "score": score,
+                "bleu": bleu,
+                "overlap_numbers": sim_nums,
             }
             definitive_alignments.append(align_info)
 
         # else check how many numbers are identical
         # weighted by the difference in length of the articles (measured with characters)
         else:
-
-            # get a list of numbers occurring in each article, compute how many percent are represented in both articles
-            src_nums = set(num_repr(src_art))
-            trg_nums = set(num_repr(trg_art))
-            try:
-                sim_nums = len(src_nums & trg_nums) / max(len(src_nums), len(trg_nums))
-            except ZeroDivisionError:
-                sim_nums = 0.3
-
             # get number of characters in each article, compute percentual difference of article lengths
             len_src = sum([len(sent) for sent in src_art[1:]])
             len_trg = sum([len(sent) for sent in trg_art[1:]])
@@ -436,151 +391,153 @@ def align(src_articles, trg_articles, trans_articles):
 
             # if this score is higher than 0.55 also accept them as parallel articles
             if weighted_sim > 0.55:
-                output_str += (
-                    "\n\tsrc art - \033[92m "
-                    + src_art[0]
-                    + " \taligned with\t "
-                    + trg_art[0]
-                    + " \033[0m\t- trg art"
-                )
                 align_info = {
                     "src": src_art[0],
                     "trg": trg_art[0],
-                    "method": "number_matching",
-                    "score": weighted_sim,
+                    "method": "number_length_matching",
+                    "bleu": bleu,
+                    "overlap_numbers": sim_nums,
+                    "number_length_score": weighted_sim,
                 }
                 definitive_alignments.append(align_info)
 
             # else compute how similar the articles are using the tf/idf vectorizer
             else:
                 try:
-                    cos_sim_tfidf = linear_kernel(
-                        tfidf[src_data.index(src_art)],
-                        tfidf[len(src_data) + trg_data.index(trg_art)],
+                    cos_sim_tfidf = float(
+                        linear_kernel(
+                            tfidf[src_data.index(src_art)],
+                            tfidf[len(src_data) + trg_data.index(trg_art)],
+                        )
                     )
 
                     # if this score is higher than 0.5 accept them as comparable articles
                     if cos_sim_tfidf > 0.5:
-                        output_str += (
-                            "\n\tsrc art - \033[94m "
-                            + src_art[0]
-                            + " \tsimilar to\t "
-                            + trg_art[0]
-                            + " \033[0m\t- trg art"
-                        )
                         align_info = {
                             "src": src_art[0],
                             "trg": trg_art[0],
                             "method": "tfidf",
-                            "score": cos_sim_tfidf,
+                            "bleu": bleu,
+                            "overlap_numbers": sim_nums,
+                            "cosine_similarity": cos_sim_tfidf,
                         }
                         comparable_alignments.append(align_info)
                 except IndexError:
                     print("TODO: fix the tf-idf alignment")
 
-    # compute how many articles were left unaligned
-    src_not_aligned = (
-        len(src_data) - len(definitive_alignments) - len(comparable_alignments)
-    )
-    trg_not_aligned = (
-        len(trg_data) - len(definitive_alignments) - len(comparable_alignments)
-    )
+    return definitive_alignments, comparable_alignments
 
-    stats_alignments["src_not_aligned"] = src_not_aligned
-    stats_alignments["trg_not_aligned"] = trg_not_aligned
 
-    # compute how many articles in total
-    src_len = len(src_data)
-    trg_len = len(trg_data)
+def corpus_figures(articles, resource, prefix):
 
-    stats_alignments["src_n_docs"] = src_len
-    stats_alignments["trg_n_docs"] = trg_len
+    meta = {}
 
-    # compute how many possible pairs were found with dynamic programming
-    dynamic_programming_output = len(alignments)
-    stats_alignments["dp_possible_pairs"] = dynamic_programming_output
+    meta[prefix] = resource
+
+    # add corpus figures
+    meta[prefix + "_n_docs"] = len(articles)
+    content = " ".join(articles)
+    meta[prefix + "_n_chars"] = len(content)
+    meta[prefix + "_n_tokens"] = len(content.split())
+    n_sents = sum([len(split_articles(art, "\n")) for art in articles])
+    meta[prefix + "_n_sentences"] = n_sents
+
+    return meta
+
+
+def alignment_stats(src_articles, trg_articles, definitive_alignments, comparable_alignments):
+
+    meta = {}
 
     # compute how many parallel and how many comparable article pairs were found
-    found_parallel = len(definitive_alignments)
-    found_comparable = len(comparable_alignments)
+    meta["dp_parallel_pairs"] = len(definitive_alignments)
+    meta["potential_pairs"] = len(comparable_alignments)
 
-    stats_alignments["dp_parallel_pairs"] = found_parallel
-    stats_alignments["other_similar_(heuristic)"] = found_comparable
+    meta["src_rel_aligned"] = round(len(definitive_alignments) / len(src_articles), 2)
+    meta["trg_rel_aligned"] = round(len(definitive_alignments) / len(trg_articles), 2)
 
-    # compute percents for statistics
-    aligned_percent = int(found_parallel / dynamic_programming_output * 100)
-    comparable_percent = int(found_comparable / dynamic_programming_output * 100)
-    src_percent = int(src_not_aligned / src_len * 100)
-    trg_percent = int(trg_not_aligned / trg_len * 100)
+    meta["ratio_src_trg"] = round(len(src_articles) / len(trg_articles), 2)
 
-    stats_alignments["dp_rel_aligned"] = found_parallel / dynamic_programming_output
-    stats_alignments["src_rel_aligned"] = found_parallel / src_len
-    stats_alignments["trg_rel_aligned"] = found_parallel / trg_len
-
-    # add statistics to status message
-    output_str += (
-        "\n\n------------------------------------------------------------------"
+    meta["src_unaligned"] = (
+        len(src_articles) - len(definitive_alignments) - len(comparable_alignments)
     )
-    output_str += "\n\nPossible alignment pairs found with dynamic progamming: {0:d}".format(
-        dynamic_programming_output
-    )
-    output_str += "\n\033[92mFound {0:d} parallel articles\033[0m\t\t= {1:d}%".format(
-        found_parallel, aligned_percent
-    )
-    output_str += "\n\033[94mFound {0:d} comparable articles\033[0m\t\t= {1:d}%".format(
-        found_comparable, comparable_percent
+    meta["trg_unaligned"] = (
+        len(trg_articles) - len(definitive_alignments) - len(comparable_alignments)
     )
 
-    output_str += "\n\nTotal source articles: {0:d}, total target articles: {1:d}".format(
-        src_len, trg_len
-    )
-    output_str += "\n\033[93m{0:d} source articles left unaligned\033[0m\t= {1:d}%".format(
-        src_not_aligned, src_percent
-    )
-    output_str += "\n\033[93m{0:d} target articles left unaligned\033[0m\t= {1:d}%\n".format(
-        trg_not_aligned, trg_percent
-    )
-    output_str += "\n------------------------------------------------------------------"
-
-    # print alignment statistics
-    print(output_str)
-
-    return definitive_alignments, comparable_alignments, stats_alignments
+    return meta
 
 
-def corpus_figures(articles, prefix):
-
-    metadata = {}
-
-    content = " ".join(articles)
-    metadata[prefix + "_n_chars"] = len(content)
-    metadata[prefix + "_n_tokens"] = len(content.split())
-    n_sents = sum([len(split_articles(art, "\n")) for art in articles])
-    metadata[prefix + "_n_sentences"] = n_sents
-
-    return metadata
-
-
-def aggregate_stats(collection):
+def filter_multi_alignments(alignments):
     """
-    Aggregate of relative and absolute corpus statistics
+    Keep only the best alignments if an article is aligned multiple times due to batching
     """
 
-    stats_aggr = {}
+    bad_aligns = set()
 
-    # sum up absolute numbers
-    for key in set(collection[0]):
-        stats_aggr[key] = sum([stats.get(key, 0) for stats in collection])
+    for idx_a, align_a in enumerate(alignments):
+        best_align = idx_a
+        for idx_b, align_b in enumerate(alignments):
+            if idx_a == idx_b:
+                continue
 
-    # recompute relative numbers
-    stats_aggr["src_rel_aligned"] = (
-        stats_aggr["dp_parallel_pairs"] / stats_aggr["src_n_docs"]
-    )
-    stats_aggr["trg_rel_aligned"] = (
-        stats_aggr["dp_parallel_pairs"] / stats_aggr["trg_n_docs"]
-    )
+            # duplicate criterion on target side
+            if align_a["trg"] == align_b["trg"]:
+                if alignments[best_align]["bleu"] >= align_b["bleu"]:
+                    bad_aligns.add(idx_b)
+                else:
+                    bad_aligns.add(best_align)  # discard current best
+                    best_align = idx_b  # set new best alignment
 
-    return stats_aggr
+    print(f"Remove {len(bad_aligns)} duplicated alignments from a total of {len(alignments)}:")
+    for idx in bad_aligns:
+        print("\t", alignments[idx])
+
+    filtered = [align for idx, align in enumerate(alignments) if idx not in bad_aligns]
+
+    return filtered
+
+
+def batch_align(src_articles, trg_articles, trans_articles, batch_size_src=500):
+    """
+    Start batch-wise alignment process to avoid memory issues
+    """
+
+    definitive_alignments = []
+    comparable_alignments = []
+
+    # ratio_src_trg = len(src_articles) / len(trg_articles)
+
+    for i, start_src in enumerate(range(0, len(src_articles), batch_size_src)):
+        end_src = min(start_src + batch_size_src, len(src_articles))
+
+        # TODO
+        # Doing a full search across all documents is too slow.
+        # Instead, search within an overlapping interval.
+        # The interval is scaled, assuming an equal distribution within a year,
+        # and increases during the process to account for irregularities in the distribution.
+        # start_trg = max(0, int(start_src / ratio_src_trg - start_src * 0.2))
+        # end_trg = min(len(trg_articles), int(end_src / ratio_src_trg + end_src * 0.2))
+        start_trg = 0
+        end_trg = len(trg_articles)
+        print("\tBATCH:", i)
+        print(
+            f"\tCompute source alignments for document range between {start_src} and {end_src} of total {len(src_articles)}"
+        )
+        print(
+            f"\tCompute target alignments for document range between {start_trg} and {end_trg} of total {len(trg_articles)}"
+        )
+        print("\t", "_" * 20)
+
+        definitive_alignments_temp, comparable_alignments_temp = align(
+            src_articles[start_src:end_src], trg_articles, trans_articles[start_src:end_src],
+        )
+
+        # aggregate across batches
+        definitive_alignments += definitive_alignments_temp
+        comparable_alignments += comparable_alignments_temp
+
+    return definitive_alignments, comparable_alignments
 
 
 ################################################################################
@@ -591,6 +548,14 @@ def main():
 
     # parse arguments
     args = parse_args()
+
+    print(
+        f"""\n------------------------------------------------------------------
+        Starting alignment process...
+        Name of source file: {args.src}
+        Name of target file: {args.trg}
+        """
+    )
 
     # read all files
     src = read_file(args.src)
@@ -607,59 +572,14 @@ def main():
     trg_articles = split_articles(trg, ".EOA")
     trans_articles = split_articles(trans, ".EOA")
 
-    print("\n------------------------------------------------------------------")
-    print("------------------------------------------------------------------")
-    print(
-        "\tStarting alignment process of {} articles from source:".format(
-            len(src_articles)
-        )
+    definitive_alignments, comparable_alignments = batch_align(
+        src_articles, trg_articles, trans_articles
     )
-    print("\t", args.src)
+    definitive_alignments = filter_multi_alignments(definitive_alignments)
+    comparable_alignments = filter_multi_alignments(comparable_alignments)
 
-    print("------------------------------------------------------------------")
-    print("------------------------------------------------------------------")
-
-    # batch-wise processing of alignment process because of extensive memory consumption
-    # compare split of source article to all potential target articles
-    definitive_alignments = []
-    comparable_alignments = []
-    stats_alignments = []
-
-    batch_size = 500
-
-    for start in range(0, len(src_articles), batch_size):
-        end = min(start + batch_size, len(src_articles))
-        print(
-            "Compute alignment for batch for document range {} between {}.".format(
-                start, end
-            )
-        )
-        definitive_alignments_temp, comparable_alignments_temp, stats_alignments_temp = align(
-            src_articles[start:end], trg_articles, trans_articles[start:end]
-        )
-
-        # aggregate across batches
-        definitive_alignments += definitive_alignments_temp
-        comparable_alignments += comparable_alignments_temp
-        stats_alignments.append(stats_alignments_temp)
-
-    # prepare all statistics
-    stats_aggr = aggregate_stats(stats_alignments)
-    stats_aggr["src"] = args.src
-    stats_aggr["trg"] = args.trg
-    corpus_figures_src = corpus_figures(src_articles, "src")
-    corpus_figures_trg = corpus_figures(trg_articles, "trg")
-    stats_aggr = {**stats_aggr, **corpus_figures_src, **corpus_figures_trg}
-
-    # write alignment statistics to csv
-    fname_stats = args.output[:-4] + "_stats.csv"
-    with open(fname_stats, "w", newline="") as csvfile:
-        fieldnames = sorted(stats_aggr.keys())
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerow(stats_aggr)
-
-    # write alignments to xml file
+    # write alignments into xml files that optionally includes
+    # heuristically similar alignments
     if args.comp:
         definitive_alignments += comparable_alignments
         write_alignments_to_xml(definitive_alignments, args.output)
@@ -667,6 +587,23 @@ def main():
         write_alignments_to_xml(definitive_alignments, args.output)
         fname = args.output.replace(".xml", "_comparable.xml")
         write_alignments_to_xml(comparable_alignments, fname)
+
+    # prepare all statistics
+    align_stats = alignment_stats(
+        src_articles, trg_articles, definitive_alignments, comparable_alignments
+    )
+    src_stats = corpus_figures(src_articles, args.src, "src")
+    trg_stats = corpus_figures(trg_articles, args.trg, "trg")
+
+    stats = {**align_stats, **src_stats, **trg_stats}
+
+    # write alignment statistics to tsv
+    fname_stats = args.output[:-4] + "_stats.tsv"
+    with open(fname_stats, "w", newline="") as csvfile:
+        fieldnames = sorted(stats.keys())
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerow(stats)
 
 
 ################################################################################
