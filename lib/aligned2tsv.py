@@ -96,9 +96,10 @@ def main():
 
     with open(f_out, "w") as f:
         for src, trg in alignments.items():
+            # example path: data_text/FedGazFr/1849/07/07/10055445.cuttered.sent.txt
             # set relative path to translation file
             f_parts = src.split("/")
-            year = f_parts[-3]
+            year = f_parts[-4]
             f_trans = f_parts[-1]
             trans = "/".join([dir_trans, year, f_trans])
 
