@@ -3,14 +3,8 @@ SHELL:=/bin/bash
 # ensure that entire pipe command fails if a part fails
 export SHELLOPTS:=errexit:pipefail
 
-ALIGN_DIR?= data_alignment
-PDF_DIR?= data_pdf
-TEXT_DIR?= data_text
-
-
-# define source name with an capitalized suffix of the language
+# define source name with an capitalized first letter of the language variable
 SRC_NAME?= FedGaz$(shell FILE_LANG=$(FILE_LANG); echo $${FILE_LANG^})
-
 
 print-%: ; @echo $* is $($*)
 
@@ -19,6 +13,7 @@ help: make-formats.mk
 	@sed -n 's/^##//p' $<
 
 ### EXTRACTING TEXT FROM PDFs WITH tet
+# example path: data_pdf/FedGazDe/1849/02/24/10000002.pdf
 pdf-files:=$(wildcard $(PDF_DIR)/$(SRC_NAME)/$(YEAR)/*/*/*.pdf)
 text-files:=$(subst $(PDF_DIR),$(TEXT_DIR),$(pdf-files:.pdf=.text))
 text-target: $(text-files)
@@ -26,7 +21,7 @@ text-target: $(text-files)
 
 $(TEXT_DIR)/%.text:$(PDF_DIR)/%.pdf
 	mkdir -p $(@D) && \
-	if [[ $$(basename $(<D) ) < "1999-06-22" ]] ;\
+	if [[ $$(echo $(<D) | sed "s|\(.*\)\(....\)/\(..\)/\(..\)|\2-\3-\4|g") < "1999-06-22" ]] ;\
 	then\
 		tet --text --lastpage last-1 --outfile $@ -v 3 $< > $@.log ; \
 	else \
