@@ -24,7 +24,7 @@ help:
 	# Don't forget to activate the virtual environment with all the requirements installed.
 	# Otherwise, the make recipe will fail without proper logging.
 
-	# make download-FedGazDe.bash (get PDF and metadata)
+	# make download-FedGazDe.bash (scrape PDF and metadata)
 
 	# make extract-tif-FedGazDe.bash (extract tif from pdf files)
 	# make rename-tif-FedGazDe.bash (rename and decompress tif from pdf files)
@@ -38,12 +38,19 @@ help:
 	# make download-index-all (download index)
 
 run-pipeline-%:
-	# TODO
+	$(MAKE) -f Makefile download-index-$*
+	$(MAKE) -f Makefile download-$*.bash
+	$(MAKE) -f Makefile tetml-word-$*-target
+	$(MAKE) -f Makefile data-ingest-$*
 	$(MAKE) -f Makefile extract-tif-$*.bash
 	$(MAKE) -f Makefile rename-tif-$*.bash
+	$(MAKE) -f Makefile jp2-$*-target
 
+
+download-index-FedGazIt: dl-it dl-1999bar-it
+download-index-FedGazFr: dl-fr dl-1999bar-fr
+download-index-FedGazDe: dl-de dl-1999bar-de
 download-index-all: dl-de dl-it dl-fr dl-1999bar-de dl-1999bar-fr dl-1999bar-it
-
 
 dl-%:
 	for y in $$( seq $(YEARS_START) 1 $(YEARS_END) ) ; do wget -S -N --limit-rate=$(LIMIT_RATE) -A *.html -R *.pdf --regex-type pcre  --reject-regex "https://www.admin.ch/opc/$*/[^f].*"--accept-regex "https://www.admin.ch/opc/$*/federal-gazette/\d+/index.*\.html" -r --no-parent https://www.admin.ch/opc/$*/federal-gazette/$${y}/index.html ; done
@@ -148,7 +155,7 @@ extract-tif-FedGazDe-files:= extract-tif-FedGazDe.bash
 extract-tif-FedGazFr-files:= extract-tif-FedGazFr.bash
 extract-tif-FedGazIt-files:= extract-tif-FedGazIt.bash
 
-extract-tif-all.bash: extract-tif-FedGazDe.bash extract-tif-FedGazFr.bash extract-tif-FedGazIt.bash
+extract-tif-all-target: extract-tif-FedGazDe.bash extract-tif-FedGazFr.bash extract-tif-FedGazIt.bash
 
 # perform for the period with scanned and OCRized documents only
 extract-tif-%.bash: article-info2-%.tsv
