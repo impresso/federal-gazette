@@ -38,15 +38,15 @@ all-single-doc-target: de-single-doc-target fr-single-doc-target it-single-doc-t
 
 de_%_all.txt:
 	@echo 'Segmenting all German documents of the year $(subst $(ALIGN_DIR)/,,$*) and concatenate to a single doc: $@'
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=de PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
+	$(MAKE) -f make_segment.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=de PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
 
 fr_%_all.txt:
 	@echo 'Segmenting all French documents of the year $(subst $(ALIGN_DIR)/,,$*) and concatenate to a single doc: $@'
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=fr PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
+	$(MAKE) -f make_segment.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=fr PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
 
 it_%_all.txt:
 	@echo 'Segmenting all Italian documents of the year $(subst $(ALIGN_DIR)/,,$*) and concatenate to a single doc: $@'
-	$(MAKE) -f make-formats.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=it PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
+	$(MAKE) -f make_segment.mk YEAR=$(subst $(ALIGN_DIR)/,,$*) FILE_LANG=it PDF_DIR=$(PDF_DIR) TEXT_DIR=$(TEXT_DIR) ALIGN_DIR=$(ALIGN_DIR) single-doc-year-target
 
 
 ################################################################################
@@ -184,7 +184,7 @@ europarl-de-fr-cuttered-target: $(europarl-de-fr-cuttered-files)
 # Subsequently, make horizontal, remove trailing spaces and add new line with echo
 #  -k Keep same order
 Europarl.de-fr.cuttered.%: Europarl.de-fr.%
-	parallel --progress --pipe -k -N 1 -j 20 "cutter $(*F) -T | tr '\n' ' ' | sed 's/[[:space:]]*$$//' && echo ''" < $< > $@
+	parallel --progress --pipe -k -N 1 -j 30 "cutter $(*F) -T | tr '\n' ' ' | sed 's/[[:space:]]*$$//' && echo ''" < $< > $@
 
 
 # Merge with EuroParl corpus
@@ -294,13 +294,8 @@ muse-eval-outdomain-files:=$(patsubst %, $(DIR_EMBED)/eval/FedGaz-%-eval-outdoma
 eval-emb-dirs:=$(muse-eval-indomain-files:train.log=.mkdir-eval-emb) $(muse-eval-outdomain-files:train.log=.mkdir-eval-emb)
 eval-emb-dirs-target: $(eval-emb-dirs)
 
-#eval-emb-dirs-target
 muse-eval-embeddings-target:  $(muse-eval-indomain-files) $(muse-eval-outdomain-files)
 
-
-
-run-pipeline-%:
-	# TODO
 
 ###############################################################
 ### CLEAN UP

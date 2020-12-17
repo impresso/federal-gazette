@@ -9,7 +9,7 @@ SRC_NAME?= FedGaz$(shell FILE_LANG=$(FILE_LANG); echo $${FILE_LANG^})
 print-%: ; @echo $* is $($*)
 
 # self-documenting makefile
-help: make-formats.mk
+help: make_segment.mk
 	@sed -n 's/^##//p' $<
 
 ### EXTRACTING TEXT FROM PDFs WITH tet
